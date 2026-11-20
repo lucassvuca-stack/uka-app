@@ -7,3 +7,5 @@ window.UKA_CONFIG = {
   // WhatsApp da locadora (só números, com 55 + DDD):
   WHATSAPP: '5512991016671'
 };
+// A aba "Importar" fica escondida: os dados vêm do sistema UKA no Claude, atualizados pelo Claude.
+document.write('<style>[data-tab="imp"]{display:none!important}</style>');
