@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d3fa6">
+<title>UKA RENTALS</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#fff;--bg2:#f2f4f8;--ink:#11151c;--mut:#5b6472;--line:#dfe3ea;--blue:#1d3fa6;--blue2:#e7ecfa;--red:#c8231b;--red2:#fdeceb;--amb:#9a5c00;--amb2:#fff4dc;--grn:#187a43;--grn2:#e5f5ec}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg2);color:var(--ink);font:16px/1.5 Barlow,system-ui,sans-serif;padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--blue);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 16px 10px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:5}
+.brand{display:flex;align-items:center;gap:10px;font:700 22px "Barlow Condensed",sans-serif;margin-right:auto;line-height:1}
+.brand small{display:block;font:600 11px Barlow,sans-serif;letter-spacing:.25em;opacity:.85}
+header button{background:rgba(255,255,255,.15);color:#fff;border:0}
+main{max-width:980px;margin:0 auto;padding:16px}
+h1{font-size:26px;margin:4px 0 12px;line-height:1.15}h2{font-size:19px;margin:0 0 10px}h3{font-size:16px;margin:14px 0 6px}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+.sub{color:var(--mut);font-size:14px}
+button,.btn{font:600 15px Barlow,sans-serif;min-height:44px;padding:0 16px;border-radius:10px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none}
+.pri{background:var(--blue);border-color:var(--blue);color:#fff}.ok{background:var(--grn);border-color:var(--grn);color:#fff}.dng{color:var(--red)}
+.sm{min-height:36px;padding:0 12px;font-size:14px}
+button:disabled{opacity:.55}
+input,select,textarea{font:16px Barlow,sans-serif;min-height:46px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink);width:100%}
+textarea{min-height:80px}
+label{display:block;font-size:14px;color:var(--mut);font-weight:500}label>input,label>select,label>textarea{margin-top:4px}
+:focus-visible{outline:3px solid #ffb800;outline-offset:2px}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.full{grid-column:1/-1}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tabs{display:flex;gap:4px;overflow-x:auto;background:var(--bg);border-radius:12px;padding:4px;margin-bottom:14px;border:1px solid var(--line)}
+.tabs button{border:0;flex:none;background:transparent}.tabs button.on{background:var(--blue2);color:var(--blue)}
+.tag{display:inline-block;border-radius:20px;padding:1px 9px;font-size:13px;font-weight:600;white-space:nowrap}
+.t-ok{background:var(--grn2);color:var(--grn)}.t-amb{background:var(--amb2);color:var(--amb)}.t-red{background:var(--red2);color:var(--red)}.t-blue{background:var(--blue2);color:var(--blue)}.t-mut{background:var(--bg2);color:var(--mut)}
+.plate{display:inline-block;border:2px solid #222;border-radius:6px;background:#fff;color:#111;overflow:hidden;min-width:150px;text-align:center}
+.plate i{display:block;background:var(--blue);color:#fff;font:600 9px/14px Barlow,sans-serif;letter-spacing:.18em;font-style:normal}
+.plate b{display:block;font:700 28px/1.3 "Barlow Condensed",sans-serif;letter-spacing:.06em;padding:0 10px}
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.shot{position:relative;border:1px dashed var(--blue);background:var(--blue2);border-radius:12px;aspect-ratio:4/3;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-weight:600;color:var(--blue);cursor:pointer;overflow:hidden;padding:6px}
+.shot.has{border-style:solid;border-color:var(--line);background:#000;color:#fff}
+.shot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.92}
+.shot span{position:relative;background:rgba(0,0,0,.55);border-radius:8px;padding:2px 8px;font-size:14px}
+.shot:not(.has) span{background:none;color:var(--blue);font-size:15px}.shot:not(.has)::before{content:'+';font-size:30px;line-height:1;font-weight:400}
+.shot.has .tag{position:absolute;top:6px;right:6px}
+.shot input{position:absolute;opacity:0;width:1px;height:1px}
+.list{list-style:none;margin:0;padding:0}.list li{display:flex;gap:10px;align-items:flex-start;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.thumb{width:72px;height:72px;border-radius:10px;object-fit:cover;background:var(--bg2);flex:none;border:1px solid var(--line)}
+.filebox{display:flex;align-items:center;justify-content:center;width:72px;height:72px;border-radius:10px;background:var(--bg2);font-weight:700;color:var(--mut);flex:none}
+.note{padding:10px 12px;border-radius:10px;font-size:15px;margin:8px 0}
+.n-amb{background:var(--amb2)}.n-red{background:var(--red2)}.n-ok{background:var(--grn2)}.n-blue{background:var(--blue2)}
+table{width:100%;border-collapse:collapse;font-size:15px}th{text-align:left;font-size:13px;color:var(--mut);padding:6px 8px;border-bottom:1px solid var(--line)}td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+.scroll{overflow-x:auto}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 18px;border-radius:10px;font-weight:600;display:none;z-index:30;max-width:92vw}
+#ov{position:fixed;inset:0;background:rgba(10,14,22,.6);display:none;align-items:flex-start;justify-content:center;z-index:20;overflow:auto;padding:4vh 10px}
+#ov.on{display:flex}.box{background:#fff;border-radius:14px;width:min(720px,100%);padding:18px}
+.box img.big{width:100%;border-radius:10px;max-height:70vh;object-fit:contain;background:#000}
+.login{max-width:420px;margin:6vh auto}
+@media(max-width:560px){.grid{grid-template-columns:minmax(0,1fr)}h1{font-size:23px}}
+</style>
+</head>
+<body>
+<header><div class="brand"><svg width="34" height="34" viewBox="0 0 170 170" aria-hidden="true"><circle cx="85" cy="85" r="78" fill="#fff"/><path d="M68 45 V92 a28 28 0 0 0 56 0 V45" fill="none" stroke="#1d3fa6" stroke-width="20"/><g stroke="#1d3fa6" stroke-width="7" stroke-linecap="round"><line x1="24" y1="68" x2="46" y2="68"/><line x1="18" y1="88" x2="46" y2="88"/><line x1="24" y1="108" x2="46" y2="108"/></g></svg><div>UKA<small>RENTALS</small></div></div><span id="who" class="sub" style="color:#dfe6ff"></span><button id="out" class="sm" hidden>Sair</button></header>
+<main id="app"><p class="sub">Carregando…</p></main>
+<div id="ov"><div class="box" id="box"></div></div>
+<div id="toast"></div>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+{
+const C=window.UKA_CONFIG||{};
+const $=s=>document.querySelector(s);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const brl=n=>n===null||n===undefined||n===''?'—':(+n).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const pad=n=>String(n).padStart(2,'0');const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());const TODAY=iso(new Date());
+const fd=s=>s?String(s).slice(0,10).split('-').reverse().join('/'):'—';
+const fdt=s=>s?new Date(s).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—';
+const kmf=n=>n||n===0?(+n).toLocaleString('pt-BR')+' km':'—';
+function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3500)}
+function modal(h){$('#box').innerHTML=h;$('#ov').classList.add('on')}
+function closeModal(){$('#ov').classList.remove('on');$('#box').innerHTML=''}
+$('#ov').addEventListener('click',e=>{if(e.target.id==='ov'||e.target.closest('[data-close]'))closeModal()});
+const TIPOS={contrato_assinado:'Contrato assinado',vistoria:'Foto do carro',pagamento:'Comprovante de pagamento',odometro:'Odômetro',outro:'Outro'};
+const ANGULOS=['Frente','Traseira','Lateral esquerda','Lateral direita','Painel / odômetro','Bancos da frente','Bancos de trás','Porta-malas','Pneus e estepe','Avaria / detalhe'];
+const stTag=s=>`<span class="tag ${s==='Aprovado'?'t-ok':s==='Recusado'?'t-red':'t-amb'}">${esc(s)}</span>`;
+const plate=p=>`<span class="plate"><i>BRASIL</i><b>${esc((p||'—').toUpperCase())}</b></span>`;
+
+if(!C.SUPABASE_URL||C.SUPABASE_URL.includes('SEU-PROJETO')||!window.supabase){
+  $('#app').innerHTML=`<div class="card login"><h1>Falta configurar</h1><p>Abra o arquivo <b>config.js</b> e coloque o endereço (Project URL) e a chave <b>anon</b> do seu projeto no Supabase. O passo a passo está no arquivo LEIA-ME.</p></div>`;
+  throw new Error('config');
+}
+const sb=window.supabase.createClient(C.SUPABASE_URL,C.SUPABASE_ANON_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+/* ---------- utilidades de arquivo ---------- */
+async function compress(file){if(!file.type.startsWith('image/')||file.type==='image/gif')return file;
+  try{const bmp=await createImageBitmap(file);const k=Math.min(1,1600/Math.max(bmp.width,bmp.height));const cv=document.createElement('canvas');cv.width=Math.round(bmp.width*k);cv.height=Math.round(bmp.height*k);cv.getContext('2d').drawImage(bmp,0,0,cv.width,cv.height);
+    const b=await new Promise(r=>cv.toBlob(r,'image/jpeg',.82));return b&&b.size<file.size?new File([b],file.name.replace(/\.\w+$/,'')+'.jpg',{type:'image/jpeg'}):file}catch(e){return file}}
+async function putFile(clientId,folder,file){const f=await compress(file);const ext=(f.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'');
+  const path=`${clientId}/${folder}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const{error}=await sb.storage.from('arquivos').upload(path,f,{contentType:f.type||'application/octet-stream',upsert:false});if(error)throw error;return{path,name:file.name}}
+const urlCache={};
+async function signed(paths){const need=[...new Set(paths.filter(p=>p&&!(urlCache[p]&&urlCache[p].t>Date.now())))];
+  if(need.length){const{data}=await sb.storage.from('arquivos').createSignedUrls(need,3600);(data||[]).forEach(x=>{if(x.signedUrl)urlCache[x.path]={u:x.signedUrl,t:Date.now()+50*60e3}})}
+  return p=>urlCache[p]?urlCache[p].u:''}
+const isImg=p=>/\.(jpe?g|png|webp|gif|heic)$/i.test(p||'');
+async function openFile(path){const u=(await signed([path]))(path);if(!u)return toast('Não consegui abrir o arquivo.');
+  if(isImg(path))modal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>Foto</b><span class="row"><a class="btn sm" href="${esc(u)}" target="_blank" rel="noopener">Abrir em tela cheia</a><button class="sm" data-close>Fechar</button></span></div><img class="big" src="${esc(u)}" alt="">`);
+  else window.open(u,'_blank','noopener')}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-open]');if(b){e.preventDefault();openFile(b.dataset.open)}});
+
+/* ---------- login ---------- */
+let mode='login';
+function loginView(msg=''){$('#out').hidden=true;$('#who').textContent='';
+  $('#app').innerHTML=`<div class="card login"><h1>${mode==='login'?'Entrar':mode==='signup'?'Primeiro acesso':'Esqueci a senha'}</h1>
+  <p class="sub">${mode==='signup'?'Use o mesmo e-mail que você informou à UKA RENTALS e crie sua senha.':mode==='reset'?'Enviaremos um link para você criar uma nova senha.':'Área do cliente UKA RENTALS.'}</p>
+  ${msg?`<div class="note n-blue">${msg}</div>`:''}
+  <form id="lf" class="grid" style="grid-template-columns:minmax(0,1fr)"><label>E-mail<input name="email" type="email" autocomplete="email" required></label>
+  ${mode!=='reset'?`<label>Senha<input name="pw" type="password" autocomplete="${mode==='signup'?'new-password':'current-password'}" minlength="6" required></label>`:''}
+  <button class="pri" type="submit">${mode==='login'?'Entrar':mode==='signup'?'Criar minha senha':'Enviar link'}</button></form>
+  <div class="row" style="margin-top:12px;justify-content:space-between">${mode!=='login'?'<button class="sm" data-mode="login">Já tenho senha</button>':'<button class="sm" data-mode="signup">Primeiro acesso</button>'}${mode!=='reset'?'<button class="sm" data-mode="reset">Esqueci a senha</button>':''}</div></div>`;
+  $('#lf').onsubmit=async e=>{e.preventDefault();const f=e.target,em=f.email.value.trim().toLowerCase(),bt=f.querySelector('button');bt.disabled=true;
+    try{if(mode==='login'){const{error}=await sb.auth.signInWithPassword({email:em,password:f.pw.value});if(error)throw error}
+      else if(mode==='signup'){const{data,error}=await sb.auth.signUp({email:em,password:f.pw.value,options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;if(!data.session){mode='login';loginView('Pronto! Enviamos um e-mail de confirmação para <b>'+esc(em)+'</b>. Clique no link e depois entre com sua senha.')}}
+      else{const{error}=await sb.auth.resetPasswordForEmail(em,{redirectTo:location.origin+location.pathname});if(error)throw error;mode='login';loginView('Se o e-mail estiver cadastrado, você vai receber o link em instantes.')}}
+    catch(x){toast(/Invalid login/i.test(x.message)?'E-mail ou senha incorretos.':/registered/i.test(x.message)?'Este e-mail já tem senha. Use "Entrar" ou "Esqueci a senha".':'Erro: '+x.message)}finally{bt.disabled=false}}}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(b){mode=b.dataset.mode;loginView()}});
+function newPassView(){$('#app').innerHTML=`<div class="card login"><h1>Nova senha</h1><form id="np" class="grid" style="grid-template-columns:minmax(0,1fr)"><label>Nova senha<input name="pw" type="password" minlength="6" autocomplete="new-password" required></label><button class="pri">Salvar senha</button></form></div>`;
+  $('#np').onsubmit=async e=>{e.preventDefault();const{error}=await sb.auth.updateUser({password:e.target.pw.value});if(error)return toast('Erro: '+error.message);toast('Senha alterada.');boot()}}
+$('#out').onclick=async()=>{await sb.auth.signOut();mode='login';loginView()};
+
+/* ---------- inicialização ---------- */
+let booting=false;
+async function boot(){if(booting)return;booting=true;try{
+  const{data:{session}}=await sb.auth.getSession();if(!session){loginView();return}
+  const uid=session.user.id;$('#out').hidden=false;
+  const{data:adm}=await sb.from('admins').select('user_id').eq('user_id',uid).maybeSingle();
+  if(adm){$('#who').textContent='Administrador';return Admin.start()}
+  const{data:me}=await sb.from('clients').select('*').eq('user_id',uid).maybeSingle();
+  if(me){$('#who').textContent=me.nome.split(' ')[0];return Client.start(me)}
+  $('#app').innerHTML=`<div class="card login"><h1>Cadastro não encontrado</h1><p>O e-mail <b>${esc(session.user.email)}</b> ainda não foi cadastrado pela UKA RENTALS. Fale com a gente para liberar seu acesso.</p>${C.WHATSAPP&&!C.WHATSAPP.includes('DDD')?`<a class="btn pri" href="https://wa.me/${esc(C.WHATSAPP)}" target="_blank" rel="noopener">Falar no WhatsApp</a>`:''}</div>`}
+  finally{booting=false}}
+sb.auth.onAuthStateChange((ev)=>{if(ev==='PASSWORD_RECOVERY')newPassView();else if(ev==='SIGNED_IN'||ev==='SIGNED_OUT')setTimeout(boot,0)});
+boot();
+
+/* =============================== CLIENTE =============================== */
+const Client={me:null,ks:[],ups:[],
+ async start(me){this.me=me;await this.load();this.render()},
+ async load(){const[k,u]=await Promise.all([sb.from('contracts').select('*, cars(*)').eq('client_id',this.me.id).order('inicio',{ascending:false}),sb.from('uploads').select('*').eq('client_id',this.me.id).order('criado_em',{ascending:false}).limit(300)]);
+  this.ks=k.data||[];this.ups=u.data||[]},
+ get k(){return this.ks.find(x=>x.status==='Ativo')||this.ks[0]||null},
+ async render(){const me=this.me,k=this.k,car=k&&k.cars,U=this.ups;
+  const sig=await signed([...U.filter(u=>isImg(u.caminho)).slice(0,60).map(u=>u.caminho)]);
+  const lastBy=(t,a)=>U.find(u=>u.tipo===t&&(a===undefined||u.angulo===a)&&u.status!=='Recusado');
+  const ass=lastBy('contrato_assinado');const m=TODAY.slice(0,7),odoMes=U.find(u=>u.tipo==='odometro'&&(u.data||u.criado_em||'').slice(0,7)===m&&u.status!=='Recusado');
+  $('#app').innerHTML=`<h1>Olá, ${esc(me.nome.split(' ')[0])}!</h1>
+  ${!k?`<div class="card"><p>Você ainda não tem um contrato cadastrado. Fale com a UKA RENTALS.</p></div>`:`
+  <section class="card"><h2>Meu carro</h2><div class="row" style="gap:16px">${plate(car&&car.placa)}<div><b>${esc(car?[car.marca,car.modelo].filter(Boolean).join(' '):'—')}</b><div class="sub">${esc([car&&car.ano,car&&car.cor].filter(Boolean).join(' · '))}</div><div class="sub">Km registrado: ${kmf(car&&car.km)}</div></div></div></section>
+  <section class="card"><h2>Meu contrato</h2><p class="sub">Início ${fd(k.inicio)}${k.fim?' · até '+fd(k.fim):''} · ${brl(k.valor)} por ${esc((k.periodo||'semana').toLowerCase().replace('semanal','semana').replace('mensal','mês').replace('quinzenal','quinzena').replace('diária','dia'))} · limite ${(+k.km_limite_mes||10000).toLocaleString('pt-BR')} km/mês</p>
+   ${ass?`<div class="note ${ass.status==='Aprovado'?'n-ok':'n-amb'}">Contrato assinado enviado em ${fdt(ass.criado_em)} · ${stTag(ass.status)} <button class="sm" data-open="${esc(ass.caminho)}">Ver</button></div>`:`<div class="note n-amb"><b>Falta enviar o contrato assinado.</b><br>1. Baixe o contrato abaixo. 2. Assine no gov.br em <a href="https://www.gov.br/governodigital/pt-br/identidade/assinatura-eletronica" target="_blank" rel="noopener">Assinatura eletrônica gov.br</a>. 3. Envie aqui o PDF assinado.</div>`}
+   <div class="row">${k.pdf_original?`<button data-open="${esc(k.pdf_original)}">Baixar contrato para assinar</button>`:'<span class="sub">O contrato para assinar ainda não foi anexado pela UKA.</span>'}
+   <label class="btn pri" style="position:relative">Enviar contrato assinado (PDF)<input type="file" accept="application/pdf" data-up="contrato_assinado" style="position:absolute;opacity:0;width:1px;height:1px"></label></div></section>
+  <section class="card"><h2>Fotos do carro (vistoria)</h2><p class="sub">Toque em cada quadro para tirar a foto. Fotografe com boa luz, mostrando o carro inteiro e qualquer arranhão ou amassado.</p>
+   <div class="shots">${ANGULOS.map(a=>{const u=lastBy('vistoria',a);return`<label class="shot ${u?'has':''}">${u&&sig(u.caminho)?`<img src="${esc(sig(u.caminho))}" alt="">`:''}<span>${esc(a)}</span>${u?stTag(u.status):''}<input type="file" accept="image/*" capture="environment" data-up="vistoria" data-ang="${esc(a)}"></label>`}).join('')}</div></section>
+  <section class="card"><h2>Pagamento</h2><p class="sub">Depois de pagar, envie o print do comprovante (Pix, transferência ou boleto).</p>
+   <form id="pgf" class="grid"><label>Valor pago (R$)<input name="v" type="number" step="any" inputmode="decimal" value="${esc(k.valor||'')}" required></label><label>Data do pagamento<input name="d" type="date" value="${TODAY}" required></label>
+   <label class="full">Print ou PDF do comprovante<input name="f" type="file" accept="image/*,application/pdf" required></label><button class="pri full">Enviar comprovante</button></form></section>
+  <section class="card"><h2>Odômetro do mês</h2><p class="sub">Todo dia 5, envie uma foto do painel mostrando a quilometragem total.</p>
+   ${odoMes?`<div class="note n-ok">Odômetro deste mês enviado: ${kmf(odoMes.km)} em ${fd(odoMes.data)} ${stTag(odoMes.status)}</div>`:+TODAY.slice(8)>=5?'<div class="note n-amb"><b>Falta enviar o odômetro deste mês.</b></div>':''}
+   <form id="odf" class="grid"><label>Km que aparece no painel<input name="km" type="number" inputmode="numeric" required></label><label>Foto do painel<input name="f" type="file" accept="image/*" capture="environment" required></label><button class="pri full">Enviar odômetro</button></form></section>`}
+  <section class="card"><h2>Meus envios</h2>${U.length?`<ul class="list">${U.slice(0,40).map(u=>`<li><div class="row" style="flex-wrap:nowrap;align-items:flex-start">${isImg(u.caminho)&&sig(u.caminho)?`<img class="thumb" src="${esc(sig(u.caminho))}" alt="">`:'<span class="filebox">PDF</span>'}<div><b>${esc(TIPOS[u.tipo]||u.tipo)}${u.angulo?' · '+esc(u.angulo):''}</b><div class="sub">${fdt(u.criado_em)}${u.valor?' · '+brl(u.valor):''}${u.km?' · '+kmf(u.km):''}</div>${u.status==='Recusado'&&u.motivo?`<div class="sub" style="color:var(--red)">Motivo: ${esc(u.motivo)}</div>`:''}</div></div><div class="row">${stTag(u.status)}<button class="sm" data-open="${esc(u.caminho)}">Ver</button></div></li>`).join('')}</ul>`:'<p class="sub">Nada enviado ainda.</p>'}</section>
+  ${C.WHATSAPP&&!C.WHATSAPP.includes('DDD')?`<a class="btn" style="width:100%" href="https://wa.me/${esc(C.WHATSAPP)}" target="_blank" rel="noopener">Falar com a UKA no WhatsApp</a>`:''}`;
+  const pg=$('#pgf');if(pg)pg.onsubmit=async e=>{e.preventDefault();const f=e.target;await this.send('pagamento',f.f.files[0],{valor:+f.v.value,data:f.d.value},f.querySelector('button'))};
+  const od=$('#odf');if(od)od.onsubmit=async e=>{e.preventDefault();const f=e.target;await this.send('odometro',f.f.files[0],{km:+f.km.value,data:TODAY},f.querySelector('button'))};
+ },
+ async send(tipo,file,extra={},btn){if(!file)return toast('Escolha o arquivo.');if(file.size>20*1024*1024)return toast('Arquivo muito grande (máx. 20 MB).');
+  if(tipo==='contrato_assinado'&&!/pdf/i.test(file.type)&&!/\.pdf$/i.test(file.name))return toast('Envie o contrato em PDF.');
+  const k=this.k;if(btn)btn.disabled=true;toast('Enviando…');
+  try{const{path,name}=await putFile(this.me.id,tipo,file);
+   const{error}=await sb.from('uploads').insert({client_id:this.me.id,contract_id:k?k.id:null,car_id:k?k.car_id:null,tipo,caminho:path,nome_arquivo:name,...extra});if(error)throw error;
+   toast('Enviado! A UKA vai conferir.');await this.load();this.render()}catch(x){toast('Não foi possível enviar: '+(x.message||x))}finally{if(btn)btn.disabled=false}}};
+document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.up&&t.files&&t.files[0]&&Client.me&&!Admin.on){const f=t.files[0];t.value='';Client.send(t.dataset.up,f,t.dataset.ang?{angulo:t.dataset.ang,data:TODAY}:{data:TODAY})}});
+
+/* ============================ ADMINISTRADOR ============================ */
+const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
+ async start(){this.on=true;await this.load();this.render()},
+ async load(){const r=await Promise.all([sb.from('cars').select('*').order('placa'),sb.from('clients').select('*').order('nome'),sb.from('contracts').select('*').order('inicio',{ascending:false}),sb.from('uploads').select('*').order('criado_em',{ascending:false}).limit(500)]);
+  const er=r.find(x=>x.error);if(er)toast('Erro ao carregar: '+er.error.message);[this.cars,this.cls,this.ks,this.ups]=r.map(x=>x.data||[])},
+ car(id){return this.cars.find(c=>c.id===id)},cl(id){return this.cls.find(c=>c.id===id)},
+ async render(){const P=this.ups.filter(u=>u.status==='Pendente');
+  const T=[['pend',`Para conferir (${P.length})`],['cli','Clientes'],['ctr','Contratos'],['car','Carros'],['imp','Importar']];
+  $('#app').innerHTML=`<div class="tabs" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" class="${this.tab===k?'on':''}">${l}</button>`).join('')}</div><div id="pane"></div>`;
+  await this['v_'+this.tab]()},
+ upRow(u,sig,actions=true){const c=this.cl(u.client_id),car=this.car(u.car_id);
+  return`<li><div class="row" style="flex-wrap:nowrap;align-items:flex-start">${isImg(u.caminho)&&sig(u.caminho)?`<img class="thumb" src="${esc(sig(u.caminho))}" alt="" data-open="${esc(u.caminho)}" style="cursor:pointer">`:`<button class="filebox" data-open="${esc(u.caminho)}" style="border:0">PDF</button>`}
+   <div><b>${esc(TIPOS[u.tipo]||u.tipo)}${u.angulo?' · '+esc(u.angulo):''}</b><div class="sub">${esc(c?c.nome:'—')} · ${esc(car?car.placa:'—')} · ${fdt(u.criado_em)}</div><div>${u.valor?'<b>'+brl(u.valor)+'</b> pago em '+fd(u.data):''}${u.km?'<b>'+kmf(u.km)+'</b>':''}</div>${u.motivo?`<div class="sub" style="color:var(--red)">${esc(u.motivo)}</div>`:''}</div></div>
+   <div class="row">${stTag(u.status)}${actions&&u.status==='Pendente'?`<button class="sm ok" data-ok="${u.id}">Aprovar</button><button class="sm dng" data-no="${u.id}">Recusar</button>`:''}<button class="sm" data-open="${esc(u.caminho)}">Abrir</button></div></li>`},
+ async v_pend(){const P=this.ups.filter(u=>u.status==='Pendente');const sig=await signed(P.filter(u=>isImg(u.caminho)).map(u=>u.caminho));
+  $('#pane').innerHTML=`<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
+ async v_cli(){$('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Clientes (${this.cls.length})</h2><button class="pri" data-newcli>+ Cliente</button></div>
+  <div class="scroll"><table><thead><tr><th>Nome</th><th>E-mail de acesso</th><th>Telefone</th><th>Acesso</th><th></th></tr></thead><tbody>${this.cls.map(c=>`<tr><td><b>${esc(c.nome)}</b><div class="sub">${esc(c.cpf||'')}</div></td><td>${esc(c.email)}</td><td>${esc(c.tel||'')}</td><td>${c.user_id?'<span class="tag t-ok">Ativo</span>':'<span class="tag t-amb">Aguardando 1º acesso</span>'}</td><td class="row"><button class="sm pri" data-ficha="${c.id}">Ficha</button><button class="sm" data-editcli="${c.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>
+  <p class="sub">Para o cliente entrar: cadastre o e-mail dele aqui, mande o link do app e peça para tocar em “Primeiro acesso” e criar a senha.</p></section>`},
+ async v_car(){$('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Carros (${this.cars.length})</h2><button class="pri" data-newcar>+ Carro</button></div>
+  <div class="scroll"><table><thead><tr><th>Placa</th><th>Veículo</th><th>Km</th><th>Cliente atual</th><th></th></tr></thead><tbody>${this.cars.map(c=>{const k=this.ks.find(x=>x.car_id===c.id&&x.status==='Ativo'),p=k&&this.cl(k.client_id);return`<tr><td><b>${esc(c.placa)}</b></td><td>${esc([c.marca,c.modelo,c.ano,c.cor].filter(Boolean).join(' · '))}</td><td>${kmf(c.km)}</td><td>${esc(p?p.nome:'—')}</td><td><button class="sm" data-editcar="${c.id}">Editar</button></td></tr>`}).join('')}</tbody></table></div></section>`},
+ async v_ctr(){$('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Contratos (${this.ks.length})</h2><button class="pri" data-newctr>+ Contrato</button></div>
+  <div class="scroll"><table><thead><tr><th>Cliente</th><th>Carro</th><th>Início</th><th>Valor</th><th>Status</th><th>Assinado</th><th></th></tr></thead><tbody>${this.ks.map(k=>{const p=this.cl(k.client_id),c=this.car(k.car_id),a=this.ups.find(u=>u.contract_id===k.id&&u.tipo==='contrato_assinado'&&u.status!=='Recusado');
+   return`<tr><td>${esc(p?p.nome:'—')}</td><td><b>${esc(c?c.placa:'—')}</b></td><td>${fd(k.inicio)}</td><td>${brl(k.valor)} <span class="sub">/${esc((k.periodo||'').toLowerCase())}</span></td><td><span class="tag ${k.status==='Ativo'?'t-blue':'t-mut'}">${esc(k.status)}</span></td><td>${a?stTag(a.status):'<span class="tag t-mut">não enviado</span>'}</td><td class="row">${k.pdf_original?`<button class="sm" data-open="${esc(k.pdf_original)}">PDF</button>`:''}<button class="sm" data-editctr="${k.id}">Editar</button></td></tr>`}).join('')}</tbody></table></div></section>`},
+ async v_imp(){$('#pane').innerHTML=`<section class="card"><h2>Importar do sistema UKA</h2><p>No sistema UKA RENTALS (Claude), vá em <b>Empresa e backup → Baixar backup (.json)</b> e envie o arquivo aqui. Eu importo os <b>carros</b>, os <b>clientes</b> e os <b>contratos ativos</b>.</p>
+  <p class="sub">Clientes sem e-mail no backup recebem um e-mail provisório (cpf@sem-email.uka). Troque pelo e-mail real em Clientes → Editar antes de liberar o acesso. Cadastros já existentes (mesma placa ou mesmo e-mail) são atualizados, não duplicados.</p>
+  <label class="btn pri" style="position:relative">Escolher backup (.json)<input type="file" id="impf" accept=".json,application/json" style="position:absolute;opacity:0;width:1px;height:1px"></label><div id="implog" class="sub" style="margin-top:10px;white-space:pre-line"></div></section>`;
+  $('#impf').onchange=e=>{const f=e.target.files[0];if(f)this.importar(f)}},
+ async importar(file){const log=t=>{$('#implog').textContent+=t+'\n'};let j;try{j=JSON.parse(await file.text())}catch(e){return toast('Arquivo inválido.')}
+  const cars=(j.cars||[]).filter(c=>c.placa&&c.status!=='Vendido'),cls=j.clients||[],ks=(j.contracts||[]).filter(k=>k.status==='Ativo');log(`Lendo: ${cars.length} carros, ${cls.length} clientes, ${ks.length} contratos ativos.`);
+  const carMap={},cliMap={};
+  for(const c of cars){const row={placa:String(c.placa).toUpperCase().replace(/[^A-Z0-9]/g,''),marca:c.marca||null,modelo:c.modelo||null,ano:+c.ano||null,cor:c.cor||null,renavam:c.renavam||null,chassi:c.chassi||null,km:+c.km||null};
+   const{data,error}=await sb.from('cars').upsert(row,{onConflict:'placa'}).select('id').single();if(error)log('Carro '+row.placa+': '+error.message);else carMap[c.id]=data.id}
+  for(const p of cls){if(!p.nome)continue;const em=(p.email||'').trim().toLowerCase()||((String(p.cpf||'').replace(/\D/g,'')||Math.random().toString(36).slice(2,8))+'@sem-email.uka');
+   const row={email:em,nome:p.nome,cpf:p.cpf||null,rg:p.rg||null,tel:p.tel||null,cnh:p.cnh||null,cnh_cat:p.cnhCat||null,cnh_venc:p.cnhVenc||null,endereco:p.endereco||null,cidade:p.cidade||null,cep:p.cep||null};
+   const{data,error}=await sb.from('clients').upsert(row,{onConflict:'email'}).select('id').single();if(error)log('Cliente '+p.nome+': '+error.message);else cliMap[p.id]=data.id}
+  let n=0;for(const k of ks){const cid=cliMap[k.clientId],car=carMap[k.carId];if(!cid){log('Contrato sem cliente importado — pulado.');continue}
+   const exists=this.ks.find(x=>x.client_id===cid&&x.car_id===(car||null)&&x.inicio===(k.inicio||null));if(exists)continue;
+   const{error}=await sb.from('contracts').insert({client_id:cid,car_id:car||null,inicio:k.inicio||null,fim:k.fim||null,periodo:k.periodo||'Semanal',valor:+k.valor||null,caucao:+k.caucao||null,km_limite_mes:10000,status:'Ativo',obs:k.obs||null});if(error)log('Contrato: '+error.message);else n++}
+  log(`Pronto: ${Object.keys(carMap).length} carros, ${Object.keys(cliMap).length} clientes e ${n} contratos novos.`);await this.load();toast('Importação concluída.')},
+ form(title,fields,rec,onSave){modal(`<form id="af"><div class="row" style="justify-content:space-between"><h2>${title}</h2><button type="button" class="sm" data-close>Fechar</button></div><div class="grid">${fields.map(([k,l,t='text',o={}])=>t==='select'?`<label class="${o.full?'full':''}">${l}<select name="${k}" ${o.req?'required':''}>${o.opts.map(([v,lb])=>`<option value="${esc(v)}" ${String(rec[k]??'')===String(v)?'selected':''}>${esc(lb)}</option>`).join('')}</select></label>`:t==='area'?`<label class="full">${l}<textarea name="${k}">${esc(rec[k]||'')}</textarea></label>`:t==='file'?`<label class="full">${l}<input type="file" name="${k}" accept="${o.accept||''}"></label>`:`<label class="${o.full?'full':''}">${l}<input name="${k}" type="${t}" ${t==='number'?'step="any"':''} value="${esc(rec[k]??'')}" ${o.req?'required':''}></label>`).join('')}</div><div class="row" style="justify-content:flex-end;margin-top:14px"><button type="button" data-close>Cancelar</button><button class="pri">Salvar</button></div></form>`);
+  $('#af').onsubmit=async e=>{e.preventDefault();const f=e.target,o={};for(const[k,,t]of fields){if(t==='file')continue;const v=f.elements[k].value.trim();o[k]=v===''?null:t==='number'?+v:v}
+   const bt=f.querySelector('.pri');bt.disabled=true;try{await onSave(o,f);closeModal();await this.load();this.render();toast('Salvo.')}catch(x){toast('Erro: '+(x.message||x))}finally{bt.disabled=false}}},
+ editCli(c={}){this.form(c.id?'Editar cliente':'Novo cliente',[['nome','Nome completo','text',{req:1,full:1}],['email','E-mail de acesso ao app','email',{req:1}],['tel','Telefone / WhatsApp'],['cpf','CPF'],['rg','RG'],['cnh','CNH'],['cnh_cat','Categoria'],['cnh_venc','Validade da CNH','date'],['endereco','Endereço','text',{full:1}],['cidade','Cidade / UF'],['cep','CEP'],['obs','Observações','area']],c,
+  async o=>{o.email=(o.email||'').toLowerCase();const q=c.id?sb.from('clients').update(o).eq('id',c.id):sb.from('clients').insert(o);const{error}=await q;if(error)throw error})},
+ editCar(c={}){this.form(c.id?'Editar carro':'Novo carro',[['placa','Placa','text',{req:1}],['marca','Marca'],['modelo','Modelo'],['ano','Ano','number'],['cor','Cor'],['km','Km atual','number'],['renavam','Renavam'],['chassi','Chassi'],['obs','Observações','area']],c,
+  async o=>{o.placa=String(o.placa||'').toUpperCase().replace(/[^A-Z0-9]/g,'');const q=c.id?sb.from('cars').update(o).eq('id',c.id):sb.from('cars').insert(o);const{error}=await q;if(error)throw error})},
+ editCtr(k={status:'Ativo',periodo:'Semanal',km_limite_mes:10000,inicio:TODAY}){this.form(k.id?'Editar contrato':'Novo contrato',[['client_id','Cliente','select',{req:1,opts:[['','— escolha —'],...this.cls.map(c=>[c.id,c.nome])]}],['car_id','Carro','select',{req:1,opts:[['','— escolha —'],...this.cars.map(c=>[c.id,c.placa+' · '+[c.marca,c.modelo].filter(Boolean).join(' ')])]}],['inicio','Início','date'],['fim','Término','date'],['periodo','Cobrança','select',{opts:[['Semanal','Semanal'],['Mensal','Mensal'],['Quinzenal','Quinzenal'],['Diária','Diária']]}],['valor','Valor por período (R$)','number'],['caucao','Caução (R$)','number'],['km_limite_mes','Limite de km por mês','number'],['status','Status','select',{opts:[['Ativo','Ativo'],['Encerrado','Encerrado'],['Cancelado','Cancelado']]}],['pdf','Contrato em PDF para o cliente assinar'+(k.pdf_original?' (já anexado — envie outro para trocar)':''),'file',{accept:'application/pdf'}],['obs','Observações','area']],k,
+  async(o,f)=>{const file=f.elements.pdf.files[0];if(file){const up=await putFile(o.client_id,'contratos',file);o.pdf_original=up.path}
+   const q=k.id?sb.from('contracts').update(o).eq('id',k.id):sb.from('contracts').insert(o);const{error}=await q;if(error)throw error})},
+ async ficha(id){const c=this.cl(id);if(!c)return;const ks=this.ks.filter(k=>k.client_id===id),U=this.ups.filter(u=>u.client_id===id),ka=ks.find(k=>k.status==='Ativo'),car=ka&&this.car(ka.car_id);
+  const sig=await signed(U.filter(u=>isImg(u.caminho)).map(u=>u.caminho));const lastBy=a=>U.find(u=>u.tipo==='vistoria'&&u.angulo===a&&u.status!=='Recusado');
+  const pagos=U.filter(u=>u.tipo==='pagamento'&&u.status==='Aprovado').reduce((s,u)=>s+(+u.valor||0),0);
+  modal(`<div class="row" style="justify-content:space-between"><h2>${esc(c.nome)}</h2><button class="sm" data-close>Fechar</button></div>
+  <p class="sub">${esc([c.email,c.tel,c.cpf&&'CPF '+c.cpf].filter(Boolean).join(' · '))}</p>
+  <div class="row" style="gap:16px;margin:10px 0">${plate(car&&car.placa)}<div><b>${esc(car?[car.marca,car.modelo].filter(Boolean).join(' '):'Sem contrato ativo')}</b><div class="sub">${ka?brl(ka.valor)+' / '+esc((ka.periodo||'').toLowerCase())+' · desde '+fd(ka.inicio):''}</div><div class="sub">Pagamentos aprovados: <b>${brl(pagos)}</b></div></div></div>
+  ${c.tel?`<a class="btn sm" href="https://wa.me/${esc(String(c.tel).replace(/\D/g,'').replace(/^(?!55)/,'55'))}" target="_blank" rel="noopener">WhatsApp</a>`:''}
+  <h3>Vistoria (fotos do carro)</h3><p class="sub">Você também pode tirar as fotos e enviar por aqui.</p>
+  <div class="shots">${ANGULOS.map(a=>{const u=lastBy(a);return`<label class="shot ${u?'has':''}">${u&&sig(u.caminho)?`<img src="${esc(sig(u.caminho))}" alt="">`:''}<span>${esc(a)}</span>${u?stTag(u.status):''}<input type="file" accept="image/*" capture="environment" data-aup="${esc(a)}" data-cli="${c.id}"></label>`}).join('')}</div>
+  <h3>Todos os envios</h3>${U.length?`<ul class="list">${U.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada enviado ainda.</p>'}`)},
+ async adminUpload(file,clientId,angulo){const c=this.cl(clientId),ka=this.ks.find(k=>k.client_id===clientId&&k.status==='Ativo');toast('Enviando…');
+  try{const{path,name}=await putFile(clientId,'vistoria',file);const{error}=await sb.from('uploads').insert({client_id:clientId,contract_id:ka?ka.id:null,car_id:ka?ka.car_id:null,tipo:'vistoria',angulo,caminho:path,nome_arquivo:name,data:TODAY,status:'Aprovado'});if(error)throw error;
+   await this.load();toast('Foto salva.');this.ficha(clientId)}catch(x){toast('Erro: '+(x.message||x))}},
+ async decide(id,ok){const u=this.ups.find(x=>x.id===id);if(!u)return;let motivo=null;
+  if(!ok){motivo=await new Promise(res=>{modal(`<form id="rf"><h2>Recusar envio</h2><label>Motivo (o cliente vai ver)<input name="m" value="Foto ilegível, envie de novo" required></label><div class="row" style="justify-content:flex-end;margin-top:12px"><button type="button" data-close>Cancelar</button><button class="pri dng" style="background:var(--red);border-color:var(--red)">Recusar</button></div></form>`);
+   $('#rf').onsubmit=e=>{e.preventDefault();const m=e.target.m.value;closeModal();res(m)};$('#box').querySelector('[data-close]').addEventListener('click',()=>res(null))});if(motivo===null)return}
+  const{error}=await sb.from('uploads').update({status:ok?'Aprovado':'Recusado',motivo}).eq('id',id);if(error)return toast('Erro: '+error.message);
+  if(ok&&u.tipo==='odometro'&&u.km&&u.car_id){const car=this.car(u.car_id);if(car&&(+u.km>(+car.km||0)))await sb.from('cars').update({km:u.km}).eq('id',u.car_id)}
+  await this.load();toast(ok?'Aprovado.':'Recusado.');if($('#ov').classList.contains('on')&&$('#box h2')&&u.client_id)this.ficha(u.client_id);else this.render()}};
+document.addEventListener('click',e=>{if(!Admin.on)return;const b=e.target.closest('[data-tab],[data-ok],[data-no],[data-ficha],[data-newcli],[data-editcli],[data-newcar],[data-editcar],[data-newctr],[data-editctr]');if(!b)return;const d=b.dataset;
+  if(d.tab){Admin.tab=d.tab;Admin.render()}if(d.ok)Admin.decide(d.ok,true);if(d.no)Admin.decide(d.no,false);if(d.ficha)Admin.ficha(d.ficha);
+  if(d.newcli!==undefined)Admin.editCli();if(d.editcli)Admin.editCli(Admin.cl(d.editcli));if(d.newcar!==undefined)Admin.editCar();if(d.editcar)Admin.editCar(Admin.car(d.editcar));
+  if(d.newctr!==undefined)Admin.editCtr();if(d.editctr)Admin.editCtr(Admin.ks.find(k=>k.id===d.editctr))});
+document.addEventListener('change',e=>{const t=e.target;if(Admin.on&&t.dataset&&t.dataset.aup&&t.files&&t.files[0]){const f=t.files[0];t.value='';Admin.adminUpload(f,t.dataset.cli,t.dataset.aup)}});
+}
+</script>
+</body>
+</html>
