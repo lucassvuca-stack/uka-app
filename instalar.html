@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#1d3fa6">
+<title>Baixar o app UKA RENTALS</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="UKA">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@700&display=swap" rel="stylesheet">
+<style>
+:root{--blue:#1d3fa6;--blue2:#e7ecfa;--ink:#11151c;--mut:#5b6472;--line:#dfe3ea;--grn:#187a43;--grn2:#e5f5ec;--amb2:#fff4dc}
+*{box-sizing:border-box}
+body{margin:0;background:#f2f4f8;color:var(--ink);font:17px/1.5 Barlow,system-ui,sans-serif;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+.top{background:var(--blue);color:#fff;text-align:center;padding:28px 16px 22px}
+.top img{width:96px;height:96px;border-radius:22px;box-shadow:0 6px 20px rgba(0,0,0,.25);background:#fff}
+.top h1{font:700 30px "Barlow Condensed",sans-serif;margin:12px 0 0;letter-spacing:.02em}
+.top p{margin:2px 0 0;opacity:.9}
+main{max-width:520px;margin:0 auto;padding:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px}
+h2{font-size:20px;margin:0 0 10px}
+.big{display:flex;width:100%;align-items:center;justify-content:center;gap:10px;min-height:58px;border:0;border-radius:14px;background:var(--blue);color:#fff;font:700 20px Barlow,sans-serif;cursor:pointer;text-decoration:none}
+.big.alt{background:#fff;color:var(--blue);border:2px solid var(--blue);font-size:17px;min-height:50px}
+.big:disabled{opacity:.6}
+ol{margin:0;padding-left:22px}ol li{margin:8px 0}
+.ic{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:var(--blue2);color:var(--blue);vertical-align:middle;margin:0 2px}
+.note{border-radius:12px;padding:12px 14px;margin:10px 0}
+.ok{background:var(--grn2)}.warn{background:var(--amb2)}
+.sub{color:var(--mut);font-size:15px}
+[hidden]{display:none!important}
+a{color:var(--blue)}
+</style>
+</head>
+<body>
+<div class="top"><img src="icon-192.png" alt=""><h1>UKA RENTALS</h1><p>App do cliente</p></div>
+<main>
+
+<section class="card" id="sec-android" hidden>
+  <h2>Baixar o app</h2>
+  <button class="big" id="btn-install">⬇️ Baixar o app</button>
+  <p class="sub" id="and-wait" style="text-align:center;margin:8px 0 0">Preparando…</p>
+  <div id="and-manual" hidden>
+    <div class="note warn">Se o botão não abrir a instalação, faça assim:</div>
+    <ol>
+      <li>Toque no menu <span class="ic">⋮</span> (canto de cima, à direita do Chrome).</li>
+      <li>Toque em <b>Instalar app</b> (ou <b>Adicionar à tela inicial</b>).</li>
+      <li>Confirme em <b>Instalar</b>.</li>
+    </ol>
+    <a class="big alt" id="open-chrome" style="margin-top:12px" hidden>Abrir no Chrome</a>
+  </div>
+</section>
+
+<section class="card" id="sec-ios" hidden>
+  <h2>Baixar no iPhone</h2>
+  <div class="note warn" id="ios-notsafari" hidden><b>Abra este link no Safari.</b> No iPhone, só dá para instalar pelo Safari.<br><button class="big alt" id="copy" style="margin-top:10px">Copiar link</button><span class="sub">Depois abra o Safari, cole na barra de endereço e siga os passos abaixo.</span></div>
+  <ol>
+    <li>Toque no botão <b>Compartilhar</b> <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v13M7 8l5-5 5 5"/><path d="M5 12v8h14v-8"/></svg></span> (na barra de baixo).</li>
+    <li>Role e toque em <b>Adicionar à Tela de Início</b> <span class="ic">＋</span>.</li>
+    <li>Toque em <b>Adicionar</b>, no canto de cima.</li>
+  </ol>
+  <p class="sub">O ícone azul da UKA vai aparecer na tela do seu iPhone, como um aplicativo.</p>
+</section>
+
+<section class="card" id="sec-pc" hidden>
+  <h2>Baixar o app</h2>
+  <p>Abra este link <b>no celular</b> para instalar o app:</p>
+  <p><b id="link-pc"></b></p>
+  <p class="sub">No computador, também dá para instalar pelo Chrome ou Edge: ícone de instalar na barra de endereço.</p>
+</section>
+
+<section class="card" id="sec-done" hidden>
+  <div class="note ok"><b>App instalado!</b> Procure o ícone azul <b>UKA</b> na tela do celular e abra por ele.</div>
+  <a class="big" href="./">Abrir o app</a>
+</section>
+
+<section class="card">
+  <h2>Depois de instalar</h2>
+  <ol>
+    <li>Abra o app <b>UKA</b> pelo ícone.</li>
+    <li>Toque em <b>Primeiro acesso</b> e use o <b>mesmo e-mail</b> que você passou para a UKA. Crie sua senha.</li>
+    <li>Abra o e-mail de confirmação e <b>clique no link</b>. Depois entre com e-mail e senha.</li>
+  </ol>
+</section>
+
+<p style="text-align:center"><a href="./">Usar pelo navegador, sem instalar</a></p>
+</main>
+
+<script>
+(function(){
+  var ua=navigator.userAgent||'';
+  var standalone=window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+  if(standalone){location.replace('./');return}
+  if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(function(){});
+  var $=function(id){return document.getElementById(id)};
+  var isIOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  var isAndroid=/Android/i.test(ua);
+  var url=location.href.split('#')[0];
+  var deferred=null;
+
+  if(isIOS){
+    $('sec-ios').hidden=false;
+    var safari=/Safari/i.test(ua)&&!/CriOS|FxiOS|EdgiOS|OPiOS|GSA|Instagram|FBAN|FBAV|WhatsApp|Line\//i.test(ua);
+    if(!safari)$('ios-notsafari').hidden=false;
+    $('copy').onclick=function(){(navigator.clipboard?navigator.clipboard.writeText(url):Promise.reject()).then(function(){$('copy').textContent='Link copiado ✔'},function(){prompt('Copie o link:',url)})};
+  }else if(isAndroid||'onbeforeinstallprompt' in window){
+    $('sec-android').hidden=false;
+    var btn=$('btn-install');btn.disabled=true;
+    var inApp=/; wv\)|WhatsApp|Instagram|FBAN|FBAV|Line\//i.test(ua);
+    if(isAndroid){var oc=$('open-chrome');oc.href='intent://'+location.host+location.pathname+'#Intent;scheme=https;package=com.android.chrome;end';oc.hidden=!inApp&&/Chrome/i.test(ua)&&!/SamsungBrowser|EdgA|OPR/i.test(ua)}
+    var showManual=function(){$('and-wait').hidden=true;$('and-manual').hidden=false;btn.disabled=false;btn.onclick=function(){$('and-manual').scrollIntoView({behavior:'smooth'})}};
+    var timer=setTimeout(showManual,inApp?300:4000);
+    window.addEventListener('beforeinstallprompt',function(e){
+      e.preventDefault();deferred=e;clearTimeout(timer);
+      $('and-wait').hidden=true;$('and-manual').hidden=true;btn.disabled=false;
+      btn.onclick=function(){if(!deferred)return showManual();deferred.prompt();deferred.userChoice.then(function(c){deferred=null;if(c.outcome!=='accepted'){$('and-wait').textContent='Instalação cancelada. Toque de novo para instalar.';$('and-wait').hidden=false}})};
+    });
+    if(!isAndroid){$('sec-pc').hidden=false;$('link-pc').textContent=url}
+  }else{
+    $('sec-pc').hidden=false;$('link-pc').textContent=url;
+  }
+  window.addEventListener('appinstalled',function(){
+    ['sec-android','sec-ios','sec-pc'].forEach(function(id){$(id).hidden=true});
+    $('sec-done').hidden=false;
+  });
+})();
+</script>
+</body>
+</html>
