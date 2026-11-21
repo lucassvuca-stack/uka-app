@@ -125,6 +125,19 @@ const isImg=p=>/\.(jpe?g|png|webp|gif|heic)$/i.test(p||'');
 async function openFile(path){const u=(await signed([path]))(path);if(!u)return toast('Não consegui abrir o arquivo.');
   if(isImg(path))modal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>Foto</b><span class="row"><a class="btn sm" href="${esc(u)}" target="_blank" rel="noopener">Abrir em tela cheia</a><button class="sm" data-close>Fechar</button></span></div><img class="big" src="${esc(u)}" alt="">`);
   else window.open(u,'_blank','noopener')}
+document.addEventListener('click',async e=>{if(!Client.me||Admin.on)return;const me=Client.me,k=Client.k;
+  if(e.target.closest('[data-perfil]')){modal(`<form id="pf"><h2>Seus dados para o contrato</h2><div class="grid">
+    <label>Nacionalidade<input name="nacionalidade" value="${esc(me.nacionalidade||'Brasileira')}" lang="pt-BR" autocapitalize="words" required></label>
+    <label>Estado civil<select name="estado_civil" required><option value="">— escolha —</option>${ESTCIV.map(x=>`<option ${me.estado_civil===x?'selected':''}>${x}</option>`).join('')}</select></label>
+    <label>Profissão<input name="profissao" value="${esc(me.profissao||'Motorista de aplicativo')}" lang="pt-BR" spellcheck="true" autocorrect="on" autocapitalize="sentences" required></label>
+    <label>Trabalha com<select name="app"><option value="">—</option>${APPS.map(x=>`<option ${me.app===x?'selected':''}>${x}</option>`).join('')}</select></label>
+    <label class="full">Contato de emergência (nome, parentesco e telefone)<input name="contato_emerg" value="${esc(me.contato_emerg||'')}" placeholder="Ex.: Maria Souza, mãe, (12) 99999-0000" lang="pt-BR" autocapitalize="words" required></label></div>
+    <div class="row" style="justify-content:flex-end;margin-top:12px"><button type="button" data-close>Cancelar</button><button class="pri">Salvar</button></div></form>`);
+   $('#pf').onsubmit=async ev=>{ev.preventDefault();const f=ev.target,p={};for(const n of ['nacionalidade','estado_civil','profissao','app','contato_emerg'])p[n]=f.elements[n].value.trim();
+    const{error}=await sb.rpc('client_update_profile',{p});if(error)return toast('Erro: '+error.message);const{data}=await sb.from('clients').select('*').eq('id',me.id).maybeSingle();if(data)Client.me=data;closeModal();toast('Dados salvos.');Client.render()};return}
+  if(e.target.closest('[data-ctrok]')&&k){const b=e.target.closest('[data-ctrok]');b.disabled=true;const{error}=await sb.rpc('client_confirm_contract',{k:k.id});if(error){b.disabled=false;return toast('Erro: '+error.message)}
+   try{await gerarPDF(ctrDados(me,k,k.cars),`contrato-uka-${(k.cars&&k.cars.placa)||''}.pdf`)}catch(x){toast(x.message)}await Client.load();Client.render();toast('Contrato baixado. Agora assine e envie aqui.');return}
+  if(e.target.closest('[data-ctrpdf]')&&k){try{toast('Gerando o PDF…');await gerarPDF(ctrDados(me,k,k.cars),`contrato-uka-${(k.cars&&k.cars.placa)||''}.pdf`)}catch(x){toast(x.message)}return}});
 document.addEventListener('click',e=>{if(e.target.closest('[data-godocs]')){setTimeout(()=>{const d=$('#docs');if(d)d.scrollIntoView({behavior:'smooth'})},50)}});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-open]');if(b){e.preventDefault();openFile(b.dataset.open)}});
 
@@ -162,6 +175,100 @@ async function boot(){if(booting)return;booting=true;try{
 sb.auth.onAuthStateChange((ev)=>{if(ev==='PASSWORD_RECOVERY')newPassView();else if(ev==='SIGNED_IN'||ev==='SIGNED_OUT')setTimeout(boot,0)});
 boot();
 
+
+/* ======================= CONTRATO (texto + PDF) ======================= */
+const LOCADOR_TXT='LUCAS SILVA VIEIRA, nome comercial UKA RENTALS, CPF 362.770.198-48, com endereço na Rua Mauricio Cardoso, nº 55, São José dos Campos/SP, telefone (12) 99101-6671, e-mail lucassv.uca@gmail.com, doravante chamado LOCADOR.';
+const DIAS_SEM=['domingo','segunda-feira','terça-feira','quarta-feira','quinta-feira','sexta-feira','sábado'];
+const MESES=['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro'];
+function diaSemana(s){if(!s)return'';return DIAS_SEM[new Date(s+'T12:00:00').getDay()]}
+function dataExt(s){const d=s?new Date(s+'T12:00:00'):new Date();return`${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`}
+const BL='____________';const vv=x=>x===null||x===undefined||x===''?BL:String(x);
+const vmoney=x=>x===null||x===undefined||x===''?'R$ '+BL:brl(x);
+function ctrDados(cl,k,car){cl=cl||{};k=k||{};car=car||{};return{
+  nome:cl.nome,nacionalidade:cl.nacionalidade||'Brasileira',estado_civil:cl.estado_civil,profissao:cl.profissao||'Motorista de aplicativo',nasc:cl.nasc,cpf:cl.cpf,rg:cl.rg,cnh:cl.cnh,cnh_cat:cl.cnh_cat,cnh_venc:cl.cnh_venc,endereco:cl.endereco,cidade:cl.cidade,cep:cl.cep,tel:cl.tel,email:cl.email,app:cl.app,contato_emerg:cl.contato_emerg,
+  marca:[car.marca,car.modelo].filter(Boolean).join(' '),ano:[car.ano,car.ano_modelo].filter(Boolean).join(' / '),cor:car.cor,placa:car.placa,renavam:car.renavam,chassi:car.chassi,
+  km_entrega:k.km_entrega??car.km,chaves:k.chaves||1,inicio:k.inicio,valor:k.valor,dia:k.dia_pagamento||diaSemana(k.inicio),caucao:k.caucao??1500,km_exc:k.km_excedente,franquia:k.franquia,multa_odo:k.multa_odometro,data:(k.enviado_em||'').slice(0,10)}}
+function ctrTabelas(d){return{
+  cli:[['Nome completo',vv(d.nome)],['Nacionalidade',vv(d.nacionalidade)],['Estado civil',vv(d.estado_civil)],['Profissão',vv(d.profissao)],['Data de nascimento',d.nasc?fd(d.nasc):BL],['CPF',vv(d.cpf)],['RG e órgão emissor',vv(d.rg)],['CNH nº (registro)',vv(d.cnh)],['Categoria da CNH',vv(d.cnh_cat)],['Validade da CNH',d.cnh_venc?fd(d.cnh_venc):BL],['Endereço',vv(d.endereco)],['Cidade / UF',vv(d.cidade)],['CEP',vv(d.cep)],['Telefone / WhatsApp',vv(d.tel)],['E-mail',vv(d.email)],['Trabalha com',vv(d.app)],['Contato de emergência',vv(d.contato_emerg)]],
+  car:[['Marca / modelo',vv(d.marca)],['Ano fabricação / modelo',vv(d.ano)],['Cor',vv(d.cor)],['Placa',vv(d.placa)],['Renavam',vv(d.renavam)],['Chassi',vv(d.chassi)],['Km na entrega',d.km_entrega?(+d.km_entrega).toLocaleString('pt-BR')+' km':BL+' km'],['Itens entregues',`estepe, macaco, chave de roda, triângulo, documento digital (CRLV-e), ${d.chaves} chave(s)`]],
+  val:[['Início',d.inicio?fd(d.inicio):BL],['Aluguel semanal',vmoney(d.valor)],['Dia do pagamento',vv(d.dia)],['Caução',vmoney(d.caucao)],['Limite de km','10.000 km por mês'],['Km acima do limite',d.km_exc?brl(d.km_exc)+' por km':'R$ '+BL+' por km']]}}
+function ctrBlocos(d){const T=ctrTabelas(d),cau=vmoney(d.caucao);return[
+ ['t','CONTRATO DE LOCAÇÃO DE VEÍCULO'],
+ ['h','PARTES'],['p','LOCADOR: '+LOCADOR_TXT],['p','LOCATÁRIO:'],['kv',T.cli],
+ ['p','Doravante chamado LOCATÁRIO. As partes celebram este contrato de locação de veículo, que se rege pelas cláusulas abaixo e pelos artigos 565 a 578 do Código Civil.'],
+ ['h','CLÁUSULA 1 — VEÍCULO'],
+ ['p','1.1. O LOCADOR aluga ao LOCATÁRIO o veículo abaixo, em bom estado de conservação e funcionamento, conforme a vistoria de entrega feita por fotos no aplicativo UKA RENTALS, que faz parte deste contrato.'],['kv',T.car],
+ ['b','1.1.1. O veículo é entregue com o tanque cheio e deve ser devolvido com o tanque cheio (cláusula 11.3).'],
+ ['p','1.2. O veículo é de uso exclusivo do LOCATÁRIO. É proibido emprestar, sublocar, ceder ou deixar outra pessoa dirigir sem autorização por escrito do LOCADOR.'],
+ ['p','1.3. O veículo pode ser usado para transporte de passageiros por aplicativo (Uber, 99, inDrive e similares) e para uso particular. É proibido usar em competições, transporte de carga, reboque, atividades ilegais ou sair do estado de São Paulo sem autorização por escrito do LOCADOR.'],
+ ['h','CLÁUSULA 2 — PRAZO E AVISO PRÉVIO DE 60 DIAS'],
+ ['p',`2.1. A locação começa em ${d.inicio?fd(d.inicio):'____ / ____ / ______'} e vigora por prazo indeterminado.`],
+ ['b','2.2. O LOCATÁRIO que quiser devolver o veículo deve avisar o LOCADOR por escrito (WhatsApp ou e-mail) com no mínimo 60 (sessenta) dias de antecedência. Durante o aviso, o aluguel continua sendo pago normalmente.'],
+ ['b',`2.3. Se o LOCATÁRIO devolver o veículo antes de completar os 60 dias de aviso, pagará multa igual ao valor da caução inteira (${cau}): perde a caução, que fica com o LOCADOR e não é devolvida. Isso não tira a obrigação de pagar aluguéis em atraso, multas de trânsito e danos ao veículo.`],
+ ['p','2.4. O LOCADOR pode encerrar o contrato com aviso de 30 (trinta) dias, ou na hora, sem aviso, nos casos da Cláusula 10.'],
+ ['h','CLÁUSULA 3 — ALUGUEL E PAGAMENTO'],
+ ['b',`3.1. O aluguel é de ${vmoney(d.valor)} por semana, pago toda ${vv(d.dia)}, adiantado, por Pix na chave CPF 362.770.198-48 (Lucas Silva Vieira).`],
+ ['p','3.2. No dia de cada pagamento, o LOCATÁRIO envia pelo aplicativo UKA RENTALS o comprovante do Pix e a foto do painel mostrando a quilometragem total.'],
+ ['b','3.3. A partir do primeiro dia de atraso, o LOCATÁRIO paga multa de 10% (dez por cento) sobre o valor em atraso, mais juros de 1% (um por cento) ao mês, calculados por dia de atraso, até o pagamento.'],
+ ['b',`3.4. Se o atraso passar de 5 (cinco) dias, o LOCADOR bloqueia o veículo pelo rastreador, recolhe o veículo onde ele estiver e o contrato é encerrado. Nesse caso, o LOCATÁRIO perde a caução inteira (${cau}), sem prejuízo da cobrança dos aluguéis atrasados, multas e demais valores devidos.`],
+ ['h','CLÁUSULA 4 — CAUÇÃO'],
+ ['b',`4.1. Para retirar o veículo, o LOCATÁRIO paga caução de ${cau}, por Pix, dinheiro ou cheque caução, que fica com o LOCADOR como garantia do contrato. O veículo só é entregue depois da caução paga ou do cheque entregue.`],
+ ['p','4.2. Se o LOCATÁRIO cumprir o aviso de 60 dias, a caução é devolvida somente 20 (vinte) dias após a devolução do veículo, prazo para conferir multas de trânsito e outros débitos que cheguem depois, descontados aluguéis em atraso, multas de trânsito, franquia, danos, km excedente, combustível faltante e demais valores devidos. Se não cumprir o aviso (cláusula 2.3) ou se o contrato for encerrado por atraso acima de 5 dias (cláusula 3.4), a caução não é devolvida.'],
+ ['p','4.3. A caução não pode ser usada pelo LOCATÁRIO para pagar aluguéis durante o contrato.'],
+ ['h','CLÁUSULA 5 — QUILOMETRAGEM'],
+ ['b','5.1. O limite é de 10.000 (dez mil) km por mês, contados pelo odômetro.'],
+ ['p',`5.2. Cada km acima do limite custa ${d.km_exc?brl(d.km_exc):'R$ '+BL}, cobrado junto com o aluguel seguinte.`],
+ ['p',`5.3. O LOCATÁRIO não pode mexer no odômetro nem desligar o rastreador. Se fizer, paga multa de ${vmoney(d.multa_odo)} e o contrato pode ser encerrado na hora.`],
+ ['h','CLÁUSULA 6 — OBRIGAÇÕES DO LOCATÁRIO'],
+ ['p','6.1. O LOCATÁRIO se obriga a: (1) usar o veículo com cuidado e respeitar o Código de Trânsito; (2) pagar combustível, pedágios, estacionamentos e lavagens; (3) conferir toda semana óleo, água, calibragem dos pneus e luzes do painel, e avisar o LOCADOR na hora se acender alguma luz de alerta ou houver barulho estranho; (4) não fazer alterações no veículo (som, insulfilm, rodas, adesivos, chip de potência) sem autorização por escrito; (5) guardar o veículo em local seguro e nunca deixar a chave ou documentos dentro dele; (6) fazer pelo aplicativo a vistoria de entrega (10 fotos) e os envios semanais; (7) levar o veículo à manutenção preventiva quando o LOCADOR chamar.'],
+ ['h','CLÁUSULA 7 — MANUTENÇÃO'],
+ ['p','7.1. A manutenção preventiva (troca de óleo, filtros, revisões) e o desgaste natural (pneus, freios, bateria) são pagos pelo LOCADOR, na oficina indicada por ele.'],
+ ['p','7.2. Consertos causados por mau uso, negligência, acidente ou falta de aviso (por exemplo, rodar com luz de óleo acesa ou pneu furado) são pagos pelo LOCATÁRIO.'],
+ ['p','7.3. Quando o veículo ficar na oficina por manutenção a cargo do LOCADOR: até 3 (três) horas no dia, não há desconto no aluguel; acima de 3 (três) horas, o LOCADOR desconta 1 (um) dia de aluguel (valor semanal dividido por 7) para cada dia em que isso acontecer. Os dias parados por culpa do LOCATÁRIO são cobrados normalmente.'],
+ ['h','CLÁUSULA 8 — MULTAS DE TRÂNSITO'],
+ ['p','8.1. Todas as multas e pontos da CNH durante a locação são de responsabilidade do LOCATÁRIO, mesmo que a notificação chegue depois da devolução.'],
+ ['p','8.2. O LOCATÁRIO autoriza o LOCADOR a indicá-lo como condutor junto ao órgão de trânsito e se obriga a assinar a indicação quando pedido.'],
+ ['p','8.3. O valor da multa deve ser pago ao LOCADOR em até 5 (cinco) dias após o aviso, ou será descontado da caução.'],
+ ['h','CLÁUSULA 9 — ACIDENTE, ROUBO E SEGURO'],
+ ['p','9.1. Em acidente, roubo ou furto, o LOCATÁRIO deve avisar o LOCADOR na hora e registrar boletim de ocorrência em até 24 horas.'],
+ ['p',`9.2. Se o veículo tiver seguro, o LOCATÁRIO paga a franquia de ${vmoney(d.franquia)} quando tiver culpa ou quando não houver outro responsável identificado.`],
+ ['p','9.3. Se não houver seguro, ou se o seguro negar a cobertura por culpa do LOCATÁRIO (embriaguez, uso proibido, condutor não autorizado, chave deixada no veículo), o LOCATÁRIO paga todos os danos, inclusive aos terceiros.'],
+ ['p','9.4. Os dias em que o veículo ficar parado por acidente com culpa do LOCATÁRIO são cobrados como aluguel.'],
+ ['h','CLÁUSULA 10 — RASTREADOR, BLOQUEADOR E SEGURO DO RASTREADOR (PAGOS PELO LOCATÁRIO)'],
+ ['p','10.1. O veículo tem rastreador. O LOCATÁRIO autoriza o LOCADOR a acompanhar a localização e a bloquear o veículo remotamente, sempre em local seguro, nos casos de: atraso no pagamento acima do prazo da cláusula 3.4, uso proibido, suspeita de roubo, falta de contato por mais de 48 horas ou descumprimento grave deste contrato.'],
+ ['p','10.2. Nesses casos o LOCADOR pode encerrar o contrato na hora e retomar o veículo onde ele estiver.'],
+ ['b','10.3. O veículo terá rastreador e bloqueador com seguro do rastreador. O custo desse serviço é pago pelo LOCATÁRIO e já está incluído no valor do aluguel, enquanto durar o contrato.'],
+ ['p','10.4. O seguro do rastreador não tira a responsabilidade do LOCATÁRIO pela franquia e pelos danos previstos na cláusula 9.'],
+ ['h','CLÁUSULA 11 — VISTORIA E DEVOLUÇÃO'],
+ ['b','11.1. Na entrega, o LOCATÁRIO tira pelo aplicativo as 10 fotos da vistoria (frente, traseira, laterais, painel com km, interior, bancos, porta-malas, pneus e avarias). Arranhões, amassados e defeitos que não aparecerem nessas fotos serão considerados causados durante a locação.'],
+ ['p','11.2. Na devolução, é feita nova vistoria com as mesmas fotos. Danos novos são pagos pelo LOCATÁRIO, pelo valor do orçamento de oficina.'],
+ ['p','11.3. O veículo deve ser devolvido no endereço do LOCADOR, limpo, com o tanque cheio e com todos os itens da cláusula 1.1. Se o tanque não estiver cheio, o LOCATÁRIO paga os litros que faltarem pelo preço do posto, e a limpeza, se necessária.'],
+ ['h','CLÁUSULA 12 — DADOS PESSOAIS'],
+ ['p','12.1. O LOCATÁRIO autoriza o uso dos seus dados, documentos, fotos e da localização do veículo somente para cumprir este contrato, cobrar valores devidos, indicar condutor de multas e proteger o veículo, conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018).'],
+ ['h','CLÁUSULA 13 — ASSINATURA E FORO'],
+ ['p','13.1. As partes aceitam a assinatura eletrônica pelo gov.br (Lei 14.063/2020) ou a assinatura com firma reconhecida em cartório, ambas com a mesma validade.'],
+ ['p','13.2. Fica eleito o foro da Comarca de São José dos Campos/SP para resolver qualquer questão deste contrato.'],
+ ['p',`São José dos Campos, ${dataExt(d.data)}.`],
+ ['sig','Lucas Silva Vieira (UKA RENTALS)',d.nome||'']]}
+function loadJsPDF(){if(window.jspdf)return Promise.resolve(window.jspdf.jsPDF);return new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';s.onload=()=>res(window.jspdf.jsPDF);s.onerror=()=>rej(new Error('Não consegui carregar o gerador de PDF. Verifique a internet.'));document.head.appendChild(s)})}
+async function gerarPDF(d,arquivo){const J=await loadJsPDF();const doc=new J({unit:'mm',format:'a4'});const M=18,TW=210-2*M;let y=26;
+  const need=h=>{if(y+h>280){doc.addPage();y=20}};
+  const para=(t,bold,size=10,gap=2.2)=>{doc.setFont('helvetica',bold?'bold':'normal');doc.setFontSize(size);const lh=size*0.43;for(const ln of doc.splitTextToSize(t,TW)){need(lh);doc.text(ln,M,y);y+=lh}y+=gap};
+  doc.setFillColor(29,63,166);doc.rect(0,0,210,15,'F');doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(14);doc.text('UKA RENTALS',M,10);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text('Locação de veículos · São José dos Campos/SP',210-M,10,{align:'right'});doc.setTextColor(17,21,28);
+  for(const b of ctrBlocos(d)){const t=b[0];
+    if(t==='t'){para(b[1],true,15,3)}
+    else if(t==='h'){y+=1.5;para(b[1],true,10.5,1.2)}
+    else if(t==='p'||t==='b'){para(b[1],t==='b')}
+    else if(t==='kv'){doc.setFontSize(9.3);for(const[k,v]of b[1]){doc.setFont('helvetica','bold');const kl=doc.splitTextToSize(k,52);doc.setFont('helvetica','normal');const vl=doc.splitTextToSize(String(v),TW-56);const h=Math.max(kl.length,vl.length)*4.1+1.8;need(h);
+        doc.setDrawColor(220,224,232);doc.line(M,y-3.4,M+TW,y-3.4);doc.setFont('helvetica','bold');doc.text(kl,M,y);doc.setFont('helvetica','normal');doc.text(vl,M+56,y);y+=h}doc.line(M,y-3.4,M+TW,y-3.4);y+=2.5}
+    else if(t==='sig'){need(52);y+=16;doc.setDrawColor(60);doc.line(M,y,M+76,y);doc.line(M+TW-76,y,M+TW,y);doc.setFontSize(9);doc.setFont('helvetica','bold');doc.text('LOCADOR',M,y+4.5);doc.text('LOCATÁRIO',M+TW-76,y+4.5);doc.setFont('helvetica','normal');doc.text(doc.splitTextToSize(b[1],76),M,y+9);doc.text(doc.splitTextToSize(b[2],76),M+TW-76,y+9);
+      y+=26;doc.line(M,y,M+76,y);doc.line(M+TW-76,y,M+TW,y);doc.text('Testemunha 1 — nome e CPF',M,y+4.5);doc.text('Testemunha 2 — nome e CPF',M+TW-76,y+4.5);y+=10}}
+  const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(7.5);doc.setTextColor(120,120,120);doc.text(`Contrato UKA RENTALS · ${d.nome||''} · ${d.placa||''}`,M,290);doc.text(`Página ${i} de ${n} · rubrica: ______`,210-M,290,{align:'right'})}
+  doc.save(arquivo||'contrato-uka.pdf')}
+const kvHtml=rows=>`<table>${rows.map(([k,v])=>`<tr><th style="width:42%">${esc(k)}</th><td>${v===BL||String(v).includes(BL)?`<span style="color:var(--red)">${esc(v)}</span>`:esc(v)}</td></tr>`).join('')}</table>`;
+const ESTCIV=['Solteiro(a)','Casado(a)','União estável','Divorciado(a)','Separado(a)','Viúvo(a)'];
+const APPS=['Uber','99','inDrive','Vários apps','Particular','Outro'];
+
 /* =============================== CLIENTE =============================== */
 const Client={me:null,ks:[],ups:[],
  async start(me){this.me=me;await this.load();this.render()},
@@ -173,18 +280,20 @@ const Client={me:null,ks:[],ups:[],
   const lastBy=(t,a)=>U.find(u=>u.tipo===t&&(a===undefined||u.angulo===a)&&u.status!=='Recusado');
   const ass=lastBy('contrato_assinado');
   const dst=DOCS.map(x=>({...x,u:lastBy('outro',x.t),rec:U.find(u=>u.tipo==='outro'&&u.angulo===x.t)}));
-  const needAss=!!(k&&k.pdf_original),reqT=dst.filter(x=>x.req).length+(needAss?1:0),reqOk=dst.filter(x=>x.req&&x.u).length+(needAss&&ass?1:0),done=reqOk>=reqT;
+  const novo=!!(k&&k.etapa),perfilOk=!!(me.estado_civil&&me.contato_emerg);
+  const needAss=!!(k&&k.pdf_original&&!k.etapa),reqT=dst.filter(x=>x.req).length+1+(needAss?1:0),reqOk=dst.filter(x=>x.req&&x.u).length+(perfilOk?1:0)+(needAss&&ass?1:0),done=reqOk>=reqT;
+  const perfilItem=`<li><div style="flex:1;min-width:200px"><b>${perfilOk?'✅':'⬜'} Seus dados para o contrato</b><div class="sub">${perfilOk?esc([me.estado_civil,me.profissao,me.contato_emerg].filter(Boolean).join(' · ')):'Estado civil, profissão e um contato de emergência. Leva 1 minuto.'}</div></div><div class="row"><button class="${perfilOk?'sm':'pri'}" data-perfil>${perfilOk?'Editar':'Preencher'}</button></div></li>`;
   const docItem=x=>`<li><div style="flex:1;min-width:200px"><b>${x.u?'✅':x.req?'⬜':'➕'} ${esc(x.t)}</b>${x.req?'':' <span class="tag t-mut">opcional</span>'}<div class="sub">${esc(x.d)}${x.link?` <a href="${x.link}" target="_blank" rel="noopener">Tirar certidão</a>`:''}</div>${!x.u&&x.rec&&x.rec.status==='Recusado'?`<div class="sub" style="color:var(--red)">Recusado${x.rec.motivo?': '+esc(x.rec.motivo):''}. Envie de novo.</div>`:''}</div>
    <div class="row">${x.u?stTag(x.u.status)+`<button class="sm" data-open="${esc(x.u.caminho)}">Ver</button>`:''}<label class="btn ${x.u?'sm':x.req?'pri':''}" style="position:relative">${x.u?'Trocar':'Enviar'}<input type="file" accept="image/*,application/pdf" ${x.cam?`capture="${x.cam}"`:''} data-up="outro" data-ang="${esc(x.t)}" style="position:absolute;opacity:0;width:1px;height:1px"></label></div></li>`;
   const docsCard=`<section class="card" id="docs" style="${done?'':'border:2px solid var(--blue)'}"><h2>${done?'Meus documentos':'Complete seu cadastro'}</h2>
    ${done?'<p class="sub">Cadastro completo. Obrigado!</p>':`<p>Para liberar seu carro, envie os documentos abaixo. É só tocar em <b>Enviar</b> e tirar a foto ou escolher o arquivo.</p>
-   <div style="background:var(--bg2);border-radius:20px;height:12px;overflow:hidden;margin:6px 0 4px"><div style="background:var(--grn);height:100%;width:${Math.round(reqOk/Math.max(reqT,1)*100)}%"></div></div><p class="sub" style="margin:0 0 6px"><b>${reqOk} de ${reqT}</b> obrigatórios enviados${needAss?' (inclui o contrato assinado, mais abaixo)':''}.</p>`}
-   <ul class="list">${dst.map(docItem).join('')}</ul></section>`;
+   <div style="background:var(--bg2);border-radius:20px;height:12px;overflow:hidden;margin:6px 0 4px"><div style="background:var(--grn);height:100%;width:${Math.round(reqOk/Math.max(reqT,1)*100)}%"></div></div><p class="sub" style="margin:0 0 6px"><b>${reqOk} de ${reqT}</b> itens enviados${needAss?' (inclui o contrato assinado, mais abaixo)':''}. Depois que a UKA aprovar, o contrato chega pronto aqui para você conferir e assinar.</p>`}
+   <ul class="list">${perfilItem}${dst.map(docItem).join('')}</ul></section>`;
   const vBy=a=>U.find(u=>u.tipo==='vistoria'&&u.angulo===a&&u.status!=='Recusado'&&(!k||!u.contract_id||u.contract_id===k.id));
   const vRec=a=>U.find(u=>u.tipo==='vistoria'&&u.angulo===a&&(!k||!u.contract_id||u.contract_id===k.id));
-  const vDone=VIST.filter(([a])=>vBy(a)).length,vOk=!k||vDone>=VIST.length,vNext=VIST.find(([a])=>!vBy(a));
+  const showVist=!!k&&(!k.etapa||!!ass),vDone=VIST.filter(([a])=>vBy(a)).length,vOk=!showVist||vDone>=VIST.length,libera=showVist&&vDone>=VIST.length,vNext=VIST.find(([a])=>!vBy(a));
   const extras=U.filter(u=>u.tipo==='vistoria'&&u.angulo==='Avaria extra'&&u.status!=='Recusado'&&(!k||u.contract_id===k.id));
-  const vistCard=!k?'':`<section class="card" id="vist" style="${vOk?'':'border:2px solid var(--blue)'}"><h2>Vistoria do carro · ${vDone} de ${VIST.length} fotos</h2>
+  const vistCard=!showVist?'':`<section class="card" id="vist" style="${vOk?'':'border:2px solid var(--blue)'}"><h2>Vistoria do carro · ${vDone} de ${VIST.length} fotos</h2>
    ${vOk?'<div class="note n-ok">Vistoria completa. Essas fotos protegem você e a UKA: mostram como o carro estava quando você pegou.</div>':`<div class="note n-blue"><b>Obrigatório antes de usar o carro.</b> Tire as 10 fotos com boa luz. Mostre bem <b>todo arranhão, amassado ou peça quebrada</b>, por dentro e por fora. Assim ninguém pode dizer depois que o estrago foi seu.</div>
    <div style="background:var(--bg2);border-radius:20px;height:12px;overflow:hidden;margin:8px 0"><div style="background:var(--grn);height:100%;width:${Math.round(vDone/VIST.length*100)}%"></div></div>
    ${vNext?`<label class="btn pri" style="position:relative;width:100%;min-height:56px;font-size:17px;margin-bottom:6px">📷 Tirar foto ${VIST.indexOf(vNext)+1} de ${VIST.length}: ${esc(vNext[0])}<input type="file" accept="image/*" capture="environment" data-up="vistoria" data-ang="${esc(vNext[0])}" style="position:absolute;opacity:0;width:1px;height:1px"></label><p class="sub" style="margin:0 0 10px">👉 ${esc(vNext[1])}</p>`:''}`}
@@ -192,25 +301,40 @@ const Client={me:null,ks:[],ups:[],
     <div class="row">${u?stTag(u.status):''}<label class="btn sm ${u?'':'pri'}" style="position:relative">${u?'Refazer':'Tirar foto'}<input type="file" accept="image/*" capture="environment" data-up="vistoria" data-ang="${esc(a)}" style="position:absolute;opacity:0;width:1px;height:1px"></label></div></li>`}).join('')}</ul>
    <h3>Mais avarias (opcional)</h3><p class="sub">Achou mais algum arranhão, amassado, banco rasgado ou peça quebrada? Mande uma foto de cada.${extras.length?` <b>${extras.length} enviada(s).</b>`:''}</p>
    <label class="btn" style="position:relative">+ Foto de avaria<input type="file" accept="image/*" capture="environment" data-up="vistoria" data-ang="Avaria extra" style="position:absolute;opacity:0;width:1px;height:1px"></label></section>`;
-  const allOk=!!k&&done&&vOk,reqUps=U.filter(u=>u.status!=='Recusado'&&(u.tipo==='vistoria'&&u.angulo!=='Avaria extra'||u.tipo==='outro'&&DOCS.some(x=>x.req&&x.t===u.angulo)||u.tipo==='contrato_assinado'));
+  const allOk=showVist&&done&&vOk,reqUps=U.filter(u=>u.status!=='Recusado'&&(u.tipo==='vistoria'&&u.angulo!=='Avaria extra'||u.tipo==='outro'&&DOCS.some(x=>x.req&&x.t===u.angulo)||u.tipo==='contrato_assinado'));
   const aprov=allOk&&reqUps.length&&reqUps.every(u=>u.status==='Aprovado');
   const waMsg=`Olá! Sou ${me.nome}. Terminei de enviar meus documentos e as 10 fotos da vistoria${car&&car.placa?' do carro '+car.placa:''} no app UKA. Pode conferir, por favor?`;
   const waBtn=C.WHATSAPP&&!C.WHATSAPP.includes('DDD')?`<a class="btn ok" style="width:100%;min-height:52px" href="https://wa.me/${esc(C.WHATSAPP)}?text=${encodeURIComponent(waMsg)}" target="_blank" rel="noopener">Avisar a UKA no WhatsApp</a>`:'';
   const fimCard=!allOk?'':aprov?`<section class="card" style="border:2px solid var(--grn)"><h2>✅ Cadastro aprovado</h2><p>A UKA conferiu seus documentos e as fotos do carro. Está tudo certo!</p></section>`:`<section class="card" style="border:2px solid var(--grn)"><h2>🎉 Tudo enviado!</h2><p>Seus documentos e as 10 fotos do carro chegaram. Agora a UKA vai conferir e aprovar.</p>${waBtn}</section>`;
+  const dC=ctrDados(me,k,car),TC=ctrTabelas(dC),govLink='<a href="https://www.gov.br/governodigital/pt-br/identidade/assinatura-eletronica" target="_blank" rel="noopener">Assinatura eletrônica gov.br</a>';
+  const errMsg=`Olá! Sou ${me.nome}. Conferi o contrato no app UKA e tem um dado errado: `;
+  const ctrCard=!novo?'':k.etapa==='enviado'?`<section class="card" id="ctr" style="border:2px solid var(--blue)"><h2>📄 Seu contrato está pronto</h2><p>A UKA preencheu o contrato com os dados dos seus documentos e do carro. <b>Confira se está tudo certo:</b></p>
+     <h3>Seus dados</h3>${kvHtml(TC.cli)}<h3>Carro</h3>${kvHtml(TC.car)}<h3>Valores</h3>${kvHtml(TC.val)}
+     <div class="row" style="margin-top:12px"><button class="ok" style="flex:1;min-height:52px" data-ctrok>Está tudo certo — baixar contrato</button>${C.WHATSAPP?`<a class="btn" style="flex:1" href="https://wa.me/${esc(C.WHATSAPP)}?text=${encodeURIComponent(errMsg)}" target="_blank" rel="noopener">Tem dado errado</a>`:''}</div></section>`
+   :`<section class="card" id="ctr" style="${ass&&ass.status==='Aprovado'?'':'border:2px solid var(--blue)'}"><h2>📄 Meu contrato</h2>
+     ${ass?`<div class="note ${ass.status==='Aprovado'?'n-ok':'n-amb'}">Contrato assinado enviado em ${fdt(ass.criado_em)} · ${stTag(ass.status)} <button class="sm" data-open="${esc(ass.caminho)}">Ver</button></div>${ass.status==='Aprovado'?'':'<p class="sub">A UKA vai conferir a assinatura. Enquanto isso, faça a vistoria do carro abaixo.</p>'}`:`<ol style="padding-left:20px;margin:6px 0 12px">
+       <li style="margin-bottom:8px"><b>Baixe o contrato</b> (PDF) <button class="sm" data-ctrpdf>Baixar contrato</button></li>
+       <li style="margin-bottom:8px"><b>Assine</b> de um destes jeitos: no ${govLink} (grátis, pelo celular), ou imprima e <b>reconheça firma</b> em cartório.</li>
+       <li><b>Envie aqui o contrato assinado</b> (PDF ou foto de todas as páginas).</li></ol>
+     <label class="btn pri" style="position:relative;width:100%;min-height:52px">Enviar contrato assinado<input type="file" accept="application/pdf,image/*" data-up="contrato_assinado" style="position:absolute;opacity:0;width:1px;height:1px"></label>`}
+     ${ass?'<button class="sm" data-ctrpdf style="margin-top:8px">Baixar o contrato de novo</button>':''}</section>`;
+  const espera=!k&&done?`<section class="card" style="border:2px solid var(--grn)"><h2>⏳ Documentos enviados!</h2><p>A UKA está conferindo. Assim que aprovar, o seu contrato chega pronto aqui no app para você conferir e assinar.</p>${C.WHATSAPP?`<a class="btn ok" style="width:100%;min-height:52px" href="https://wa.me/${esc(C.WHATSAPP)}?text=${encodeURIComponent('Olá! Sou '+me.nome+'. Enviei meus documentos no app UKA. Pode conferir, por favor?')}" target="_blank" rel="noopener">Avisar a UKA no WhatsApp</a>`:''}</section>`:'';
   const fimKey='uka-fim-'+(k?k.id:me.id);let showFim=false;try{showFim=allOk&&!aprov&&!localStorage.getItem(fimKey);if(showFim)localStorage.setItem(fimKey,'1')}catch(e){}
-  const firstKey='uka-bemvindo-'+me.id;let showWelcome=false;try{showWelcome=(!done||!vOk)&&!localStorage.getItem(firstKey);if(showWelcome)localStorage.setItem(firstKey,'1')}catch(e){}const cy=cicloSemana(k),cyIni=cy?diaAntes(cy):'9999';const okS=t=>U.find(u=>u.tipo===t&&u.status!=='Recusado'&&((u.data||'')>=cyIni||(u.criado_em||'').slice(0,10)>=cyIni));const pagS=okS('pagamento'),odoS=okS('odometro');
+  const firstKey='uka-bemvindo-'+me.id;let showWelcome=false;try{showWelcome=!done&&!localStorage.getItem(firstKey);if(showWelcome)localStorage.setItem(firstKey,'1')}catch(e){}const cy=cicloSemana(k),cyIni=cy?diaAntes(cy):'9999';const okS=t=>U.find(u=>u.tipo===t&&u.status!=='Recusado'&&((u.data||'')>=cyIni||(u.criado_em||'').slice(0,10)>=cyIni));const pagS=okS('pagamento'),odoS=okS('odometro');
   $('#app').innerHTML=`<h1>Olá, ${esc(me.nome.split(' ')[0])}!</h1>
   ${fimCard}
   ${done?'':docsCard}
+  ${espera}
+  ${ctrCard&&!(ass&&ass.status==='Aprovado')?ctrCard:''}
   ${vOk?'':vistCard}
-  ${!k?`<div class="card"><p>Você ainda não tem um contrato cadastrado. Fale com a UKA RENTALS.</p></div>`:`
+  ${!k?'':`
   <section class="card"><h2>Meu carro</h2><div class="row" style="gap:16px">${plate(car&&car.placa)}<div><b>${esc(car?[car.marca,car.modelo].filter(Boolean).join(' '):'—')}</b><div class="sub">${esc([car&&car.ano,car&&car.cor].filter(Boolean).join(' · '))}</div><div class="sub">Km registrado: ${kmf(car&&car.km)}</div></div></div></section>
-  <section class="card"><h2>Meu contrato</h2><p class="sub">Início ${fd(k.inicio)}${k.fim?' · até '+fd(k.fim):''} · ${brl(k.valor)} por ${esc((k.periodo||'semana').toLowerCase().replace('semanal','semana').replace('mensal','mês').replace('quinzenal','quinzena').replace('diária','dia'))} · limite ${(+k.km_limite_mes||10000).toLocaleString('pt-BR')} km/mês</p>
+  ${novo?(ass&&ass.status==='Aprovado'?ctrCard:''):`  <section class="card"><h2>Meu contrato</h2><p class="sub">Início ${fd(k.inicio)}${k.fim?' · até '+fd(k.fim):''} · ${brl(k.valor)} por ${esc((k.periodo||'semana').toLowerCase().replace('semanal','semana').replace('mensal','mês').replace('quinzenal','quinzena').replace('diária','dia'))} · limite ${(+k.km_limite_mes||10000).toLocaleString('pt-BR')} km/mês</p>
    ${ass?`<div class="note ${ass.status==='Aprovado'?'n-ok':'n-amb'}">Contrato assinado enviado em ${fdt(ass.criado_em)} · ${stTag(ass.status)} <button class="sm" data-open="${esc(ass.caminho)}">Ver</button></div>`:`<div class="note n-amb"><b>Falta enviar o contrato assinado.</b><br>1. Baixe o contrato abaixo. 2. Assine no gov.br em <a href="https://www.gov.br/governodigital/pt-br/identidade/assinatura-eletronica" target="_blank" rel="noopener">Assinatura eletrônica gov.br</a>. 3. Envie aqui o PDF assinado.</div>`}
    <div class="row">${k.pdf_original?`<button data-open="${esc(k.pdf_original)}">Baixar contrato para assinar</button>`:'<span class="sub">O contrato para assinar ainda não foi anexado pela UKA.</span>'}
-   <label class="btn pri" style="position:relative">Enviar contrato assinado (PDF)<input type="file" accept="application/pdf" data-up="contrato_assinado" style="position:absolute;opacity:0;width:1px;height:1px"></label></div></section>
+   <label class="btn pri" style="position:relative">Enviar contrato assinado (PDF)<input type="file" accept="application/pdf" data-up="contrato_assinado" style="position:absolute;opacity:0;width:1px;height:1px"></label></div></section>`}
   ${vOk?vistCard:''}
-  ${vOk?'':'<section class="card"><h2>Envio da semana</h2><div class="note n-amb">🔒 Termine as 10 fotos da vistoria (acima) para liberar os envios semanais.</div></section>'}<section class="card" style="${vOk?'':'display:none'}"><h2>Envio da semana${cy?' · dia '+fd(cy):''}</h2><p class="sub">Toda semana, no dia do pagamento, envie <b>o comprovante do aluguel</b> e <b>a foto do painel</b> mostrando a quilometragem total.</p>
+  ${libera?'':`<section class="card"><h2>Envio da semana</h2><div class="note n-amb">🔒 ${showVist?'Termine as 10 fotos da vistoria (acima) para liberar os envios semanais.':'Os envios semanais começam depois do contrato assinado e da vistoria do carro.'}</div></section>`}<section class="card" style="${libera?'':'display:none'}"><h2>Envio da semana${cy?' · dia '+fd(cy):''}</h2><p class="sub">Toda semana, no dia do pagamento, envie <b>o comprovante do aluguel</b> e <b>a foto do painel</b> mostrando a quilometragem total.</p>
    <div class="row" style="margin:6px 0 10px"><span class="tag ${pagS?'t-ok':'t-amb'}">Comprovante: ${pagS?'enviado':'pendente'}</span><span class="tag ${odoS?'t-ok':'t-amb'}">Odômetro: ${odoS?'enviado':'pendente'}</span></div>
    ${pagS&&odoS?`<div class="note n-ok">Envio desta semana completo. Obrigado!</div>`:`<form id="wkf" class="grid">
    ${pagS?'':`<label>Valor pago (R$)<input name="v" type="number" step="any" inputmode="decimal" value="${esc(k.valor||'')}" required></label><label>Data do pagamento<input name="d" type="date" value="${TODAY}" required></label>
@@ -221,14 +345,14 @@ const Client={me:null,ks:[],ups:[],
   <section class="card"><h2>Meus envios</h2>${U.length?`<ul class="list">${U.slice(0,40).map(u=>`<li><div class="row" style="flex-wrap:nowrap;align-items:flex-start">${isImg(u.caminho)&&sig(u.caminho)?`<img class="thumb" src="${esc(sig(u.caminho))}" alt="">`:'<span class="filebox">PDF</span>'}<div><b>${esc(TIPOS[u.tipo]||u.tipo)}${u.angulo?' · '+esc(u.angulo):''}</b><div class="sub">${fdt(u.criado_em)}${u.valor?' · '+brl(u.valor):''}${u.km?' · '+kmf(u.km):''}</div>${u.status==='Recusado'&&u.motivo?`<div class="sub" style="color:var(--red)">Motivo: ${esc(u.motivo)}</div>`:''}</div></div><div class="row">${stTag(u.status)}<button class="sm" data-open="${esc(u.caminho)}">Ver</button></div></li>`).join('')}</ul>`:'<p class="sub">Nada enviado ainda.</p>'}</section>
   ${C.WHATSAPP&&!C.WHATSAPP.includes('DDD')?`<a class="btn" style="width:100%" href="https://wa.me/${esc(C.WHATSAPP)}" target="_blank" rel="noopener">Falar com a UKA no WhatsApp</a>`:''}`;
   if(showFim)modal(`<h2>🎉 Tudo enviado!</h2><p>Obrigado! Recebemos seus documentos e as 10 fotos do carro.</p><p>Toque abaixo para avisar a UKA que você terminou. Ela confere e libera.</p>${waBtn}<button style="width:100%;margin-top:8px" data-close>Fechar</button>`);
-  else if(showWelcome)modal(`<h2>Bem-vindo(a) à UKA RENTALS! 🚗</h2><p>Antes de pegar o carro, precisamos de alguns documentos seus:</p><ul style="padding-left:20px;margin:6px 0 12px">${DOCS.filter(x=>x.req).map(x=>`<li><b>${esc(x.t)}</b></li>`).join('')}${needAss?'<li><b>Contrato assinado no gov.br</b></li>':''}${k?'<li><b>10 fotos do carro (vistoria)</b>, com o km do painel</li>':''}</ul><p class="sub">Leva uns 10 minutos. Você pode tirar as fotos agora com o celular.</p><button class="pri" style="width:100%" data-close data-godocs>Começar agora</button><button style="width:100%;margin-top:8px" data-close>Depois</button>`);
+  else if(showWelcome)modal(`<h2>Bem-vindo(a) à UKA RENTALS! 🚗</h2><p>Para alugar o carro, o primeiro passo é enviar seus documentos:</p><ul style="padding-left:20px;margin:6px 0 12px">${DOCS.filter(x=>x.req).map(x=>`<li><b>${esc(x.t)}</b></li>`).join('')}<li><b>Seus dados para o contrato</b> (estado civil, profissão e contato de emergência)</li></ul><p class="sub">Leva uns 5 minutos. Depois que a UKA aprovar, o contrato chega pronto aqui no app para você conferir e assinar.</p><button class="pri" style="width:100%" data-close data-godocs>Começar agora</button><button style="width:100%;margin-top:8px" data-close>Depois</button>`);
   const wk=$('#wkf');if(wk)wk.onsubmit=async e=>{e.preventDefault();const f=e.target,bt=f.querySelector('button');bt.disabled=true;let ok=true;
    if(f.f)ok=await this.send('pagamento',f.f.files[0],{valor:+f.v.value,data:f.d.value},null,true);
    if(ok&&f.fo)ok=await this.send('odometro',f.fo.files[0],{km:+f.km.value,data:TODAY},null,true);
    bt.disabled=false;if(ok){toast('Enviado! A UKA vai conferir.');await this.load();this.render()}};
  },
  async send(tipo,file,extra={},btn,quiet){if(!file){toast('Escolha o arquivo.');return false}if(file.size>20*1024*1024){toast('Arquivo muito grande (máx. 20 MB).');return false}
-  if(tipo==='contrato_assinado'&&!/pdf/i.test(file.type)&&!/\.pdf$/i.test(file.name)){toast('Envie o contrato em PDF.');return false}
+  if(tipo==='contrato_assinado'&&!/pdf|image/i.test(file.type)&&!/\.(pdf|jpe?g|png|heic)$/i.test(file.name)){toast('Envie o contrato em PDF ou foto.');return false}
   const k=this.k;if(btn)btn.disabled=true;toast('Enviando…');
   try{const{path,name}=await putFile(this.me.id,tipo,file);
    const{error}=await sb.from('uploads').insert({client_id:this.me.id,contract_id:k?k.id:null,car_id:k?k.car_id:null,tipo,caminho:path,nome_arquivo:name,...extra});if(error)throw error;
@@ -244,7 +368,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   const er=r.find(x=>x.error);if(er)toast('Erro ao carregar: '+er.error.message);[this.cars,this.cls,this.ks,this.ups]=r.map(x=>x.data||[])},
  car(id){return this.cars.find(c=>c.id===id)},cl(id){return this.cls.find(c=>c.id===id)},
  async render(){const P=this.ups.filter(u=>u.status==='Pendente');
-  const T=[['pend',`${this.ready().length?'🔔 ':''}Para conferir (${P.length})`],['cli','Clientes'],['ctr','Contratos'],['car','Carros'],['imp','Importar']];
+  const T=[['pend',`${this.ready().length||this.cardsDocs()?'🔔 ':''}Para conferir (${P.length})`],['cli','Clientes'],['ctr','Contratos'],['car','Carros'],['imp','Importar']];
   $('#app').innerHTML=`<div class="tabs" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" class="${this.tab===k?'on':''}">${l}</button>`).join('')}</div><div id="pane"></div>`;
   await this['v_'+this.tab]()},
  upRow(u,sig,actions=true){const c=this.cl(u.client_id),car=this.car(u.car_id);
@@ -252,15 +376,63 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
    <div><b>${esc(TIPOS[u.tipo]||u.tipo)}${u.angulo?' · '+esc(u.angulo):''}</b><div class="sub">${esc(c?c.nome:'—')} · ${esc(car?car.placa:'—')} · ${fdt(u.criado_em)}</div><div>${u.valor?'<b>'+brl(u.valor)+'</b> pago em '+fd(u.data):''}${u.km?'<b>'+kmf(u.km)+'</b>':''}</div>${u.motivo?`<div class="sub" style="color:var(--red)">${esc(u.motivo)}</div>`:''}</div></div>
    <div class="row">${stTag(u.status)}${actions&&u.status==='Pendente'?`<button class="sm ok" data-ok="${u.id}">Aprovar</button><button class="sm dng" data-no="${u.id}">Recusar</button>`:''}<button class="sm" data-open="${esc(u.caminho)}">Abrir</button></div></li>`},
  ready(){const CAD=['vistoria','outro','contrato_assinado'];return this.cls.map(c=>{const k=this.ks.find(x=>x.client_id===c.id&&x.status==='Ativo');if(!k)return null;const U=this.ups.filter(u=>u.client_id===c.id&&u.status!=='Recusado');
-   const docs=DOCS.filter(x=>x.req).every(x=>U.some(u=>u.tipo==='outro'&&u.angulo===x.t)),vist=VIST.every(([a])=>U.some(u=>u.tipo==='vistoria'&&u.angulo===a&&(!u.contract_id||u.contract_id===k.id))),ass=!k.pdf_original||U.some(u=>u.tipo==='contrato_assinado');
+   const docs=DOCS.filter(x=>x.req).every(x=>U.some(u=>u.tipo==='outro'&&u.angulo===x.t)),vist=VIST.every(([a])=>U.some(u=>u.tipo==='vistoria'&&u.angulo===a&&(!u.contract_id||u.contract_id===k.id))),ass=(!k.pdf_original&&!k.etapa)||U.some(u=>u.tipo==='contrato_assinado');
    const pend=U.filter(u=>u.status==='Pendente'&&CAD.includes(u.tipo)).length;return docs&&vist&&ass&&pend?{c,k,pend,car:this.car(k.car_id)}:null}).filter(Boolean)},
+ docSt(c){const U=this.ups.filter(u=>u.client_id===c.id&&u.tipo==='outro'&&u.status!=='Recusado');const req=DOCS.filter(x=>x.req);
+  const sent=req.every(x=>U.some(u=>u.angulo===x.t)),pend=U.filter(u=>u.status==='Pendente').length,aprov=req.every(x=>U.some(u=>u.angulo===x.t&&u.status==='Aprovado'));
+  const kk=this.ks.filter(k=>k.client_id===c.id),temCtr=kk.some(k=>k.etapa||k.status==='Ativo');return{sent,pend,aprov,temCtr,perfil:!!(c.estado_civil&&c.contato_emerg)}},
+ cardsDocs(){return this.cls.map(c=>{const st=this.docSt(c);
+   if(st.sent&&st.pend&&!st.temCtr)return`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Documentos para conferir</h2><p><b>${esc(c.nome)}</b> enviou a CNH, o comprovante de endereço e a selfie${st.perfil?' e os dados do contrato':''}. Confira e aprove para preparar o contrato.</p><div class="row"><button class="pri" data-ficha="${c.id}">Conferir documentos</button><button class="ok" data-okdocs="${c.id}">Aprovar documentos</button></div></section>`;
+   if(st.aprov&&!st.temCtr)return`<section class="card" style="border:2px solid var(--grn)"><h2>🚗 Qual carro você vai alugar para ${esc(c.nome.split(' ')[0])}?</h2><p>Os documentos de <b>${esc(c.nome)}</b> estão aprovados. Escolha o carro e o contrato vai pronto para ele conferir e assinar.</p><button class="ok" data-prep="${c.id}">Escolher o carro e enviar o contrato</button></section>`;
+   return''}).join('')},
+ async okDocs(id){const c=this.cl(id);if(!c)return;const P=this.ups.filter(u=>u.client_id===id&&u.status==='Pendente'&&u.tipo==='outro');if(!P.length)return toast('Nenhum documento pendente.');
+  if(!confirm(`Aprovar os ${P.length} documento(s) de ${c.nome}? Confira as fotos antes.`))return;
+  const{error}=await sb.from('uploads').update({status:'Aprovado'}).eq('client_id',id).eq('status','Pendente').eq('tipo','outro');if(error)return toast('Erro: '+error.message);
+  await this.load();this.render();toast('Documentos aprovados.');this.prep(id)},
+ prep(id){const c=this.cl(id);if(!c)return;let pad={};try{pad=JSON.parse(localStorage.getItem('uka-ctr-pad')||'{}')}catch(e){}const k0={caucao:pad.caucao,km_excedente:pad.km_excedente,franquia:pad.franquia,multa_odometro:pad.multa_odometro,...(this.ks.find(k=>k.client_id===id&&k.status==='Ativo')||{})};const U=this.ups.filter(u=>u.client_id===id&&u.tipo==='outro'&&u.status!=='Recusado');
+  const docBtns=DOCS.filter(x=>x.req).map(x=>{const u=U.find(v=>v.angulo===x.t);return u?`<button type="button" class="sm" data-open="${esc(u.caminho)}">Ver ${esc(x.t)}</button>`:''}).join('');
+  const busy=new Set(this.ks.filter(k=>k.status==='Ativo'&&k.client_id!==id).map(k=>k.car_id));
+  const inp=(n,l,v,t='text',x='')=>`<label>${l}<input name="${n}" type="${t}" ${t==='number'?'step="any"':''} value="${esc(v??'')}" ${x}></label>`;
+  modal(`<form id="pc"><div class="row" style="justify-content:space-between"><h2>Contrato de ${esc(c.nome.split(' ')[0])}</h2><button type="button" class="sm" data-close>Fechar</button></div>
+   <h3>1. Qual carro você vai alugar?</h3><div class="grid"><label class="full">Carro<select name="car_id" required><option value="">— escolha o carro —</option>${this.cars.map(x=>`<option value="${x.id}" ${k0.car_id===x.id?'selected':''}>${esc(x.placa)} · ${esc([x.marca,x.modelo,x.ano,x.cor].filter(Boolean).join(' '))}${busy.has(x.id)?' (alugado)':''}</option>`).join('')}</select></label></div>
+   <div id="carinfo" class="sub" style="margin:4px 0 8px"></div>
+   <h3>2. Valores</h3><div class="grid">${inp('inicio','Início da locação',k0.inicio||TODAY,'date','required')}${inp('valor','Aluguel por semana (R$)',k0.valor,'number','required')}
+    <label>Dia do pagamento<select name="dia_pagamento">${DIAS_SEM.map(x=>`<option ${(k0.dia_pagamento||diaSemana(k0.inicio||TODAY))===x?'selected':''}>${x}</option>`).join('')}</select></label>
+    ${inp('caucao','Caução (R$)',k0.caucao??1500,'number')}${inp('km_entrega','Km na entrega',k0.km_entrega,'number')}${inp('chaves','Nº de chaves',k0.chaves||1,'number')}
+    ${inp('km_excedente','Km acima do limite (R$ por km)',k0.km_excedente,'number')}${inp('franquia','Franquia do seguro (R$)',k0.franquia,'number')}${inp('multa_odometro','Multa por mexer no odômetro (R$)',k0.multa_odometro,'number')}</div>
+   <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600">3. Conferir dados do cliente (vieram dos documentos)</summary><div class="row" style="margin:8px 0">${docBtns}</div><div class="grid">
+    ${inp('nome','Nome completo',c.nome,'text','required')}${inp('cpf','CPF',c.cpf)}${inp('rg','RG e órgão emissor',c.rg)}${inp('nasc','Nascimento',c.nasc,'date')}
+    ${inp('cnh','CNH nº',c.cnh)}${inp('cnh_cat','Categoria',c.cnh_cat)}${inp('cnh_venc','Validade da CNH',c.cnh_venc,'date')}${inp('tel','Telefone',c.tel)}
+    <label class="full">Endereço<input name="endereco" value="${esc(c.endereco||'')}" lang="pt-BR" autocapitalize="words"></label>${inp('cidade','Cidade / UF',c.cidade)}${inp('cep','CEP',c.cep)}
+    ${inp('nacionalidade','Nacionalidade',c.nacionalidade||'Brasileira')}<label>Estado civil<select name="estado_civil"><option value="">—</option>${ESTCIV.map(x=>`<option ${c.estado_civil===x?'selected':''}>${x}</option>`).join('')}</select></label>
+    ${inp('profissao','Profissão',c.profissao||'Motorista de aplicativo')}<label>Trabalha com<select name="app"><option value="">—</option>${APPS.map(x=>`<option ${c.app===x?'selected':''}>${x}</option>`).join('')}</select></label>
+    <label class="full">Contato de emergência<input name="contato_emerg" value="${esc(c.contato_emerg||'')}"></label></div></details>
+   <div id="pcwarn"></div>
+   <div class="row" style="justify-content:flex-end;margin-top:14px"><button type="button" id="pcprev">Ver prévia (PDF)</button><button class="ok">Enviar contrato para o cliente</button></div></form>`);
+  const f=$('#pc'),N=['car_id','inicio','valor','dia_pagamento','caucao','km_entrega','chaves','km_excedente','franquia','multa_odometro'],CL=['nome','cpf','rg','nasc','cnh','cnh_cat','cnh_venc','tel','endereco','cidade','cep','nacionalidade','estado_civil','profissao','app','contato_emerg'];
+  const num=v=>v===''?null:+v,read=()=>{const k={...k0},cl={...c};for(const n of N)k[n]=['valor','caucao','km_entrega','chaves','km_excedente','franquia','multa_odometro'].includes(n)?num(f.elements[n].value):(f.elements[n].value||null);for(const n of CL)cl[n]=f.elements[n].value.trim()||null;return{k,cl,car:this.car(k.car_id)}};
+  const info=()=>{const x=this.car(f.car_id.value);$('#carinfo').innerHTML=x?`${esc([x.marca,x.modelo].filter(Boolean).join(' '))} · ${esc(x.ano||'')} · ${esc(x.cor||'')} · Renavam ${esc(x.renavam||'—')} · Chassi ${esc(x.chassi||'—')}`:'';
+    if(x&&!f.km_entrega.value&&x.km)f.km_entrega.value=x.km;if(x&&!f.valor.value&&x.valor_semanal)f.valor.value=x.valor_semanal;
+    const{k,cl,car}=read(),T=ctrTabelas(ctrDados(cl,k,car)),falta=[...T.cli,...T.car,...T.val].filter(([,v])=>String(v).includes(BL)).map(([a])=>a).concat(k.franquia==null?['Franquia do seguro']:[],k.multa_odometro==null?['Multa do odômetro']:[]);
+    $('#pcwarn').innerHTML=falta.length?`<div class="note n-amb">Vai em branco no contrato: ${esc(falta.join(', '))}. Você pode enviar assim ou completar antes.</div>`:''};
+  f.car_id.onchange=info;f.oninput=e=>{if(e.target.name==='inicio')f.dia_pagamento.value=diaSemana(f.inicio.value);info()};info();
+  $('#pcprev').onclick=async()=>{const{k,cl,car}=read();try{await gerarPDF(ctrDados(cl,k,car),'previa-contrato.pdf')}catch(x){toast(x.message)}};
+  f.onsubmit=async ev=>{ev.preventDefault();const{k,cl}=read();const bt=f.querySelector('.ok');bt.disabled=true;
+   try{const cu={};for(const n of CL)cu[n]=cl[n];const e1=(await sb.from('clients').update(cu).eq('id',id)).error;if(e1)throw e1;
+    const row={client_id:id,car_id:k.car_id,inicio:k.inicio,periodo:'Semanal',valor:k.valor,dia_pagamento:k.dia_pagamento,caucao:k.caucao,km_entrega:k.km_entrega,chaves:k.chaves,km_excedente:k.km_excedente,franquia:k.franquia,multa_odometro:k.multa_odometro,km_limite_mes:10000,status:'Ativo',etapa:'enviado',enviado_em:new Date().toISOString()};
+    const e2=(k0.id?await sb.from('contracts').update(row).eq('id',k0.id):await sb.from('contracts').insert(row)).error;if(e2)throw e2;
+    try{localStorage.setItem('uka-ctr-pad',JSON.stringify({caucao:k.caucao,km_excedente:k.km_excedente,franquia:k.franquia,multa_odometro:k.multa_odometro}))}catch(e){}
+    if(k.valor){const x=this.car(k.car_id);if(x&&!x.valor_semanal)await sb.from('cars').update({valor_semanal:k.valor}).eq('id',x.id)}
+    await this.load();this.render();const tel=String(cl.tel||'').replace(/\D/g,'').replace(/^(?!55)/,'55');
+    modal(`<h2>✅ Contrato enviado</h2><p>O contrato de <b>${esc(cl.nome)}</b> já está no app dele, pronto para conferir, baixar e assinar.</p>${cl.tel?`<a class="btn ok" style="width:100%" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${cl.nome.split(' ')[0]}! Seus documentos foram aprovados e o seu contrato da UKA RENTALS está pronto no app. Abra o app UKA RENTALS, confira seus dados, baixe o contrato e assine pelo gov.br (ou reconheça firma). Depois envie o contrato assinado pelo próprio app. 🚗`)}" target="_blank" rel="noopener">Avisar o cliente no WhatsApp</a>`:''}<button style="width:100%;margin-top:8px" data-close>Fechar</button>`)}
+   catch(x){toast('Erro: '+(x.message||x))}finally{bt.disabled=false}}},
  async okAll(id){const r=this.ready().find(x=>x.c.id===id),c=this.cl(id);if(!c)return;if(!confirm(`Aprovar os documentos e as fotos da vistoria de ${c.nome}${r?' ('+r.pend+' itens)':''}? Pagamentos semanais continuam para você conferir à parte.`))return;
   const CAD=['vistoria','outro','contrato_assinado'];const P=this.ups.filter(u=>u.client_id===id&&u.status==='Pendente'&&CAD.includes(u.tipo));if(!P.length)return toast('Nada do cadastro para aprovar.');const{error}=await sb.from('uploads').update({status:'Aprovado'}).eq('client_id',id).eq('status','Pendente').in('tipo',CAD);if(error)return toast('Erro: '+error.message);
   const kmU=P.filter(u=>u.km&&u.car_id&&(u.tipo==='odometro'||u.tipo==='vistoria')).sort((a,b)=>b.km-a.km)[0];if(kmU){const car=this.car(kmU.car_id);if(car&&+kmU.km>(+car.km||0))await sb.from('cars').update({km:kmU.km}).eq('id',kmU.car_id)}
   await this.load();this.render();const tel=String(c.tel||'').replace(/\D/g,'').replace(/^(?!55)/,'55');
   modal(`<h2>✅ Cadastro de ${esc(c.nome.split(' ')[0])} aprovado</h2><p>${P.length} envio(s) aprovado(s).</p>${c.tel?`<a class="btn ok" style="width:100%" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${c.nome.split(' ')[0]}! Conferimos seus documentos e as fotos do carro: está tudo certo, cadastro aprovado. ✅ UKA RENTALS`)}" target="_blank" rel="noopener">Avisar o cliente no WhatsApp</a>`:''}<button style="width:100%;margin-top:8px" data-close>Fechar</button>`)},
  async v_pend(){const P=this.ups.filter(u=>u.status==='Pendente');const sig=await signed(P.filter(u=>isImg(u.caminho)).map(u=>u.caminho));const RD=this.ready();
-  $('#pane').innerHTML=`${RD.map(r=>`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Cadastro completo para conferir</h2><p><b>${esc(r.c.nome)}</b>${r.car?' · '+esc(r.car.placa):''} enviou os documentos e as 10 fotos da vistoria. <b>${r.pend}</b> item(ns) esperando você.</p><div class="row"><button class="pri" data-ficha="${r.c.id}">Conferir fotos e documentos</button><button class="ok" data-okall="${r.c.id}">Aprovar cadastro</button></div></section>`).join('')}<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
+  $('#pane').innerHTML=`${this.cardsDocs()}${RD.map(r=>`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Cadastro completo para conferir</h2><p><b>${esc(r.c.nome)}</b>${r.car?' · '+esc(r.car.placa):''} enviou os documentos e as 10 fotos da vistoria. <b>${r.pend}</b> item(ns) esperando você.</p><div class="row"><button class="pri" data-ficha="${r.c.id}">Conferir fotos e documentos</button><button class="ok" data-okall="${r.c.id}">Aprovar cadastro</button></div></section>`).join('')}<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
  async v_cli(){$('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Clientes (${this.cls.length})</h2><button class="pri" data-newcli>+ Cliente</button></div>
   <div class="scroll"><table><thead><tr><th>Nome</th><th>E-mail de acesso</th><th>Telefone</th><th>Acesso</th><th></th></tr></thead><tbody>${this.cls.map(c=>`<tr><td><b>${esc(c.nome)}</b><div class="sub">${esc(c.cpf||'')}</div></td><td>${esc(c.email)}</td><td>${esc(c.tel||'')}</td><td>${c.user_id?'<span class="tag t-ok">Ativo</span>':'<span class="tag t-amb">Aguardando 1º acesso</span>'}</td><td class="row"><button class="sm pri" data-ficha="${c.id}">Ficha</button><button class="sm" data-editcli="${c.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>
   <p class="sub">Para o cliente entrar: cadastre o e-mail dele aqui, mande o link do app e peça para tocar em “Primeiro acesso” e criar a senha.</p></section>`},
@@ -303,6 +475,9 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   <div class="row" style="gap:16px;margin:10px 0">${plate(car&&car.placa)}<div><b>${esc(car?[car.marca,car.modelo].filter(Boolean).join(' '):'Sem contrato ativo')}</b><div class="sub">${ka?brl(ka.valor)+' / '+esc((ka.periodo||'').toLowerCase())+' · desde '+fd(ka.inicio):''}</div><div class="sub">Pagamentos aprovados: <b>${brl(pagos)}</b></div></div></div>
   ${c.tel?`<a class="btn sm" href="https://wa.me/${esc(String(c.tel).replace(/\D/g,'').replace(/^(?!55)/,'55'))}" target="_blank" rel="noopener">WhatsApp</a>`:''}
   ${U.some(u=>u.status==='Pendente'&&['vistoria','outro','contrato_assinado'].includes(u.tipo))?`<div class="note n-blue">Documentos e fotos aguardando você. Confira abaixo e aprove um a um, ou <button class="sm ok" data-okall="${c.id}">Aprovar cadastro (documentos + vistoria)</button></div>`:''}
+  <h3>Contrato</h3>${(()=>{const kk=this.ks.find(k=>k.client_id===c.id&&k.status==='Ativo');const sa=U.find(u=>u.tipo==='contrato_assinado'&&u.status!=='Recusado');
+   const et=!kk?'<span class="tag t-mut">ainda não preparado</span>':kk.etapa==='enviado'?'<span class="tag t-amb">enviado — cliente conferindo</span>':kk.etapa==='confirmado'?(sa?`<span class="tag ${sa.status==='Aprovado'?'t-ok':'t-amb'}">assinado ${sa.status==='Aprovado'?'e aprovado':'— conferir'}</span>`:'<span class="tag t-amb">cliente confirmou os dados — falta assinar</span>'):'<span class="tag t-blue">contrato antigo</span>';
+   return`<div class="row" style="margin-bottom:6px">${et}<button class="sm ${kk?'':'pri'}" data-prep="${c.id}">${kk?'Editar e reenviar contrato':'Escolher o carro e enviar contrato'}</button>${kk&&kk.etapa?`<button class="sm" data-adpdf="${kk.id}">Ver contrato (PDF)</button>`:''}${sa?`<button class="sm" data-open="${esc(sa.caminho)}">Ver assinado</button>`:''}</div>`})()}
   <h3>Documentos</h3><div class="row">${DOCS.map(x=>{const u=U.find(v=>v.tipo==='outro'&&v.angulo===x.t&&v.status!=='Recusado');return`<span class="tag ${u?(u.status==='Aprovado'?'t-ok':'t-amb'):(x.req?'t-red':'t-mut')}">${u?(u.status==='Aprovado'?'✓ ':'⏳ '):(x.req?'Falta: ':'')}${esc(x.t)}</span>`}).join('')}</div>
   <h3>Vistoria (fotos do carro)</h3><p class="sub">Você também pode tirar as fotos e enviar por aqui.</p>
   <div class="shots">${ANGULOS.map(a=>{const u=lastBy(a);return`<label class="shot ${u?'has':''}">${u&&sig(u.caminho)?`<img src="${esc(sig(u.caminho))}" alt="">`:''}<span>${esc(a)}</span>${u?stTag(u.status):''}<input type="file" accept="image/*" capture="environment" data-aup="${esc(a)}" data-cli="${c.id}"></label>`}).join('')}</div>
@@ -316,10 +491,11 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   const{error}=await sb.from('uploads').update({status:ok?'Aprovado':'Recusado',motivo}).eq('id',id);if(error)return toast('Erro: '+error.message);
   if(ok&&(u.tipo==='odometro'||u.tipo==='vistoria')&&u.km&&u.car_id){const car=this.car(u.car_id);if(car&&(+u.km>(+car.km||0)))await sb.from('cars').update({km:u.km}).eq('id',u.car_id)}
   await this.load();toast(ok?'Aprovado.':'Recusado.');if($('#ov').classList.contains('on')&&$('#box h2')&&u.client_id)this.ficha(u.client_id);else this.render()}};
-document.addEventListener('click',e=>{if(!Admin.on)return;const b=e.target.closest('[data-tab],[data-ok],[data-no],[data-ficha],[data-newcli],[data-editcli],[data-newcar],[data-editcar],[data-newctr],[data-editctr],[data-okall]');if(!b)return;const d=b.dataset;
+document.addEventListener('click',e=>{if(!Admin.on)return;const b=e.target.closest('[data-tab],[data-ok],[data-no],[data-ficha],[data-newcli],[data-editcli],[data-newcar],[data-editcar],[data-newctr],[data-editctr],[data-okall],[data-okdocs],[data-prep],[data-adpdf]');if(!b)return;const d=b.dataset;
   if(d.tab){Admin.tab=d.tab;Admin.render()}if(d.ok)Admin.decide(d.ok,true);if(d.no)Admin.decide(d.no,false);if(d.ficha)Admin.ficha(d.ficha);
   if(d.newcli!==undefined)Admin.editCli();if(d.editcli)Admin.editCli(Admin.cl(d.editcli));if(d.newcar!==undefined)Admin.editCar();if(d.editcar)Admin.editCar(Admin.car(d.editcar));
-  if(d.okall)Admin.okAll(d.okall);
+  if(d.okall)Admin.okAll(d.okall);if(d.okdocs)Admin.okDocs(d.okdocs);if(d.prep)Admin.prep(d.prep);
+  if(d.adpdf){const k=Admin.ks.find(x=>x.id===d.adpdf);if(k)gerarPDF(ctrDados(Admin.cl(k.client_id),k,Admin.car(k.car_id)),'contrato.pdf').catch(x=>toast(x.message))}
   if(d.newctr!==undefined)Admin.editCtr();if(d.editctr)Admin.editCtr(Admin.ks.find(k=>k.id===d.editctr))});
 document.addEventListener('change',e=>{const t=e.target;if(Admin.on&&t.dataset&&t.dataset.aup&&t.files&&t.files[0]){const f=t.files[0];t.value='';Admin.adminUpload(f,t.dataset.cli,t.dataset.aup)}});
 }
