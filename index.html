@@ -84,7 +84,8 @@ function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';cl
 function modal(h){$('#box').innerHTML=h;$('#ov').classList.add('on')}
 function closeModal(){$('#ov').classList.remove('on');$('#box').innerHTML=''}
 $('#ov').addEventListener('click',e=>{if(e.target.id==='ov'||e.target.closest('[data-close]'))closeModal()});
-const TIPOS={contrato_assinado:'Contrato assinado',vistoria:'Foto do carro',pagamento:'Comprovante de pagamento',odometro:'Odômetro',outro:'Outro'};
+const TIPOS={contrato_assinado:'Contrato assinado',vistoria:'Foto do carro',pagamento:'Comprovante de pagamento',odometro:'Odômetro',outro:'Documento'};
+const DOCS=[{t:'CNH',req:1,d:'Foto da CNH aberta, mostrando bem os dados, ou o PDF da CNH Digital (app Carteira Digital de Trânsito).'},{t:'Comprovante de endereço',req:1,d:'Conta de luz, água, gás ou internet dos últimos 3 meses.'},{t:'Selfie com a CNH',req:1,d:'Foto do seu rosto segurando a CNH ao lado, com boa luz.',cam:'user'},{t:'Perfil no app de motorista',req:0,d:'Print do seu perfil na Uber, 99 ou inDrive mostrando a nota e o número de viagens.'},{t:'Antecedentes criminais',req:0,d:'Certidão gratuita, sai na hora no site da Polícia Federal.',link:'https://servicos.pf.gov.br/epol-sinic-publico/'},{t:'Comprovante de renda',req:0,d:'Extrato de ganhos do app ou holerite.'}];
 const ANGULOS=['Frente','Traseira','Lateral esquerda','Lateral direita','Painel / odômetro','Bancos da frente','Bancos de trás','Porta-malas','Pneus e estepe','Avaria / detalhe'];
 const stTag=s=>`<span class="tag ${s==='Aprovado'?'t-ok':s==='Recusado'?'t-red':'t-amb'}">${esc(s)}</span>`;
 const cicloSemana=k=>{if(!k||!k.inicio)return null;let d=new Date(k.inicio+'T12:00:00'),last=null,i=0;while(iso(d)<=TODAY&&i<2000){last=iso(d);d.setDate(d.getDate()+7);i++}return last};
@@ -113,6 +114,7 @@ const isImg=p=>/\.(jpe?g|png|webp|gif|heic)$/i.test(p||'');
 async function openFile(path){const u=(await signed([path]))(path);if(!u)return toast('Não consegui abrir o arquivo.');
   if(isImg(path))modal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>Foto</b><span class="row"><a class="btn sm" href="${esc(u)}" target="_blank" rel="noopener">Abrir em tela cheia</a><button class="sm" data-close>Fechar</button></span></div><img class="big" src="${esc(u)}" alt="">`);
   else window.open(u,'_blank','noopener')}
+document.addEventListener('click',e=>{if(e.target.closest('[data-godocs]')){setTimeout(()=>{const d=$('#docs');if(d)d.scrollIntoView({behavior:'smooth'})},50)}});
 document.addEventListener('click',e=>{const b=e.target.closest('[data-open]');if(b){e.preventDefault();openFile(b.dataset.open)}});
 
 /* ---------- login ---------- */
@@ -158,8 +160,18 @@ const Client={me:null,ks:[],ups:[],
  async render(){const me=this.me,k=this.k,car=k&&k.cars,U=this.ups;
   const sig=await signed([...U.filter(u=>isImg(u.caminho)).slice(0,60).map(u=>u.caminho)]);
   const lastBy=(t,a)=>U.find(u=>u.tipo===t&&(a===undefined||u.angulo===a)&&u.status!=='Recusado');
-  const ass=lastBy('contrato_assinado');const cy=cicloSemana(k),cyIni=cy?diaAntes(cy):'9999';const okS=t=>U.find(u=>u.tipo===t&&u.status!=='Recusado'&&((u.data||'')>=cyIni||(u.criado_em||'').slice(0,10)>=cyIni));const pagS=okS('pagamento'),odoS=okS('odometro');
+  const ass=lastBy('contrato_assinado');
+  const dst=DOCS.map(x=>({...x,u:lastBy('outro',x.t),rec:U.find(u=>u.tipo==='outro'&&u.angulo===x.t)}));
+  const needAss=!!(k&&k.pdf_original),reqT=dst.filter(x=>x.req).length+(needAss?1:0),reqOk=dst.filter(x=>x.req&&x.u).length+(needAss&&ass?1:0),done=reqOk>=reqT;
+  const docItem=x=>`<li><div style="flex:1;min-width:200px"><b>${x.u?'✅':x.req?'⬜':'➕'} ${esc(x.t)}</b>${x.req?'':' <span class="tag t-mut">opcional</span>'}<div class="sub">${esc(x.d)}${x.link?` <a href="${x.link}" target="_blank" rel="noopener">Tirar certidão</a>`:''}</div>${!x.u&&x.rec&&x.rec.status==='Recusado'?`<div class="sub" style="color:var(--red)">Recusado${x.rec.motivo?': '+esc(x.rec.motivo):''}. Envie de novo.</div>`:''}</div>
+   <div class="row">${x.u?stTag(x.u.status)+`<button class="sm" data-open="${esc(x.u.caminho)}">Ver</button>`:''}<label class="btn ${x.u?'sm':x.req?'pri':''}" style="position:relative">${x.u?'Trocar':'Enviar'}<input type="file" accept="image/*,application/pdf" ${x.cam?`capture="${x.cam}"`:''} data-up="outro" data-ang="${esc(x.t)}" style="position:absolute;opacity:0;width:1px;height:1px"></label></div></li>`;
+  const docsCard=`<section class="card" id="docs" style="${done?'':'border:2px solid var(--blue)'}"><h2>${done?'Meus documentos':'Complete seu cadastro'}</h2>
+   ${done?'<p class="sub">Cadastro completo. Obrigado!</p>':`<p>Para liberar seu carro, envie os documentos abaixo. É só tocar em <b>Enviar</b> e tirar a foto ou escolher o arquivo.</p>
+   <div style="background:var(--bg2);border-radius:20px;height:12px;overflow:hidden;margin:6px 0 4px"><div style="background:var(--grn);height:100%;width:${Math.round(reqOk/Math.max(reqT,1)*100)}%"></div></div><p class="sub" style="margin:0 0 6px"><b>${reqOk} de ${reqT}</b> obrigatórios enviados${needAss?' (inclui o contrato assinado, mais abaixo)':''}.</p>`}
+   <ul class="list">${dst.map(docItem).join('')}</ul></section>`;
+  const firstKey='uka-bemvindo-'+me.id;let showWelcome=false;try{showWelcome=!done&&!localStorage.getItem(firstKey);if(showWelcome)localStorage.setItem(firstKey,'1')}catch(e){}const cy=cicloSemana(k),cyIni=cy?diaAntes(cy):'9999';const okS=t=>U.find(u=>u.tipo===t&&u.status!=='Recusado'&&((u.data||'')>=cyIni||(u.criado_em||'').slice(0,10)>=cyIni));const pagS=okS('pagamento'),odoS=okS('odometro');
   $('#app').innerHTML=`<h1>Olá, ${esc(me.nome.split(' ')[0])}!</h1>
+  ${done?'':docsCard}
   ${!k?`<div class="card"><p>Você ainda não tem um contrato cadastrado. Fale com a UKA RENTALS.</p></div>`:`
   <section class="card"><h2>Meu carro</h2><div class="row" style="gap:16px">${plate(car&&car.placa)}<div><b>${esc(car?[car.marca,car.modelo].filter(Boolean).join(' '):'—')}</b><div class="sub">${esc([car&&car.ano,car&&car.cor].filter(Boolean).join(' · '))}</div><div class="sub">Km registrado: ${kmf(car&&car.km)}</div></div></div></section>
   <section class="card"><h2>Meu contrato</h2><p class="sub">Início ${fd(k.inicio)}${k.fim?' · até '+fd(k.fim):''} · ${brl(k.valor)} por ${esc((k.periodo||'semana').toLowerCase().replace('semanal','semana').replace('mensal','mês').replace('quinzenal','quinzena').replace('diária','dia'))} · limite ${(+k.km_limite_mes||10000).toLocaleString('pt-BR')} km/mês</p>
@@ -175,8 +187,10 @@ const Client={me:null,ks:[],ups:[],
    <label class="full">Print ou PDF do comprovante<input name="f" type="file" accept="image/*,application/pdf" required></label>`}
    ${odoS?'':`<label>Km que aparece no painel<input name="km" type="number" inputmode="numeric" required></label><label>Foto do painel (odômetro)<input name="fo" type="file" accept="image/*" capture="environment" required></label>`}
    <button class="pri full">Enviar ${!pagS&&!odoS?'comprovante + odômetro':!pagS?'comprovante':'odômetro'}</button></form>`}</section>`}
+  ${done?docsCard:''}
   <section class="card"><h2>Meus envios</h2>${U.length?`<ul class="list">${U.slice(0,40).map(u=>`<li><div class="row" style="flex-wrap:nowrap;align-items:flex-start">${isImg(u.caminho)&&sig(u.caminho)?`<img class="thumb" src="${esc(sig(u.caminho))}" alt="">`:'<span class="filebox">PDF</span>'}<div><b>${esc(TIPOS[u.tipo]||u.tipo)}${u.angulo?' · '+esc(u.angulo):''}</b><div class="sub">${fdt(u.criado_em)}${u.valor?' · '+brl(u.valor):''}${u.km?' · '+kmf(u.km):''}</div>${u.status==='Recusado'&&u.motivo?`<div class="sub" style="color:var(--red)">Motivo: ${esc(u.motivo)}</div>`:''}</div></div><div class="row">${stTag(u.status)}<button class="sm" data-open="${esc(u.caminho)}">Ver</button></div></li>`).join('')}</ul>`:'<p class="sub">Nada enviado ainda.</p>'}</section>
   ${C.WHATSAPP&&!C.WHATSAPP.includes('DDD')?`<a class="btn" style="width:100%" href="https://wa.me/${esc(C.WHATSAPP)}" target="_blank" rel="noopener">Falar com a UKA no WhatsApp</a>`:''}`;
+  if(showWelcome)modal(`<h2>Bem-vindo(a) à UKA RENTALS! 🚗</h2><p>Antes de pegar o carro, precisamos de alguns documentos seus:</p><ul style="padding-left:20px;margin:6px 0 12px">${DOCS.filter(x=>x.req).map(x=>`<li><b>${esc(x.t)}</b></li>`).join('')}${needAss?'<li><b>Contrato assinado no gov.br</b></li>':''}</ul><p class="sub">Leva uns 5 minutos. Você pode tirar as fotos agora com o celular.</p><button class="pri" style="width:100%" data-close data-godocs>Começar agora</button><button style="width:100%;margin-top:8px" data-close>Depois</button>`);
   const wk=$('#wkf');if(wk)wk.onsubmit=async e=>{e.preventDefault();const f=e.target,bt=f.querySelector('button');bt.disabled=true;let ok=true;
    if(f.f)ok=await this.send('pagamento',f.f.files[0],{valor:+f.v.value,data:f.d.value},null,true);
    if(ok&&f.fo)ok=await this.send('odometro',f.fo.files[0],{km:+f.km.value,data:TODAY},null,true);
@@ -247,6 +261,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   <p class="sub">${esc([c.email,c.tel,c.cpf&&'CPF '+c.cpf].filter(Boolean).join(' · '))}</p>
   <div class="row" style="gap:16px;margin:10px 0">${plate(car&&car.placa)}<div><b>${esc(car?[car.marca,car.modelo].filter(Boolean).join(' '):'Sem contrato ativo')}</b><div class="sub">${ka?brl(ka.valor)+' / '+esc((ka.periodo||'').toLowerCase())+' · desde '+fd(ka.inicio):''}</div><div class="sub">Pagamentos aprovados: <b>${brl(pagos)}</b></div></div></div>
   ${c.tel?`<a class="btn sm" href="https://wa.me/${esc(String(c.tel).replace(/\D/g,'').replace(/^(?!55)/,'55'))}" target="_blank" rel="noopener">WhatsApp</a>`:''}
+  <h3>Documentos</h3><div class="row">${DOCS.map(x=>{const u=U.find(v=>v.tipo==='outro'&&v.angulo===x.t&&v.status!=='Recusado');return`<span class="tag ${u?(u.status==='Aprovado'?'t-ok':'t-amb'):(x.req?'t-red':'t-mut')}">${u?(u.status==='Aprovado'?'✓ ':'⏳ '):(x.req?'Falta: ':'')}${esc(x.t)}</span>`}).join('')}</div>
   <h3>Vistoria (fotos do carro)</h3><p class="sub">Você também pode tirar as fotos e enviar por aqui.</p>
   <div class="shots">${ANGULOS.map(a=>{const u=lastBy(a);return`<label class="shot ${u?'has':''}">${u&&sig(u.caminho)?`<img src="${esc(sig(u.caminho))}" alt="">`:''}<span>${esc(a)}</span>${u?stTag(u.status):''}<input type="file" accept="image/*" capture="environment" data-aup="${esc(a)}" data-cli="${c.id}"></label>`}).join('')}</div>
   <h3>Todos os envios</h3>${U.length?`<ul class="list">${U.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada enviado ainda.</p>'}`)},
