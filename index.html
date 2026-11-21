@@ -163,6 +163,13 @@ function newPassView(){$('#app').innerHTML=`<div class="card login"><h1>Nova sen
   $('#np').onsubmit=async e=>{e.preventDefault();const{error}=await sb.auth.updateUser({password:e.target.pw.value});if(error)return toast('Erro: '+error.message);toast('Senha alterada.');boot()}}
 $('#out').onclick=async()=>{await sb.auth.signOut();mode='login';loginView()};
 
+/* ---------- atualização automática e avisos ---------- */
+const busy=()=>$('#ov').classList.contains('on')||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
+function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=.08;o.start();setTimeout(()=>{o.frequency.value=1175},140);setTimeout(()=>{o.stop();a.close()},320)}catch(e){}}
+async function avisar(titulo,corpo){toast(titulo+(corpo?' — '+corpo:''));beep();
+  try{if('Notification' in window&&Notification.permission==='granted'&&document.visibilityState!=='visible'){const r=await navigator.serviceWorker.ready;r.showNotification(titulo,{body:corpo||'',icon:'icon-192.png',badge:'icon-192.png',tag:'uka-'+Date.now()})}}catch(e){}}
+const podeAvisar=()=>'Notification' in window&&'serviceWorker' in navigator&&Notification.permission==='default';
+
 /* ---------- cadastro feito pelo próprio cliente ---------- */
 const mCpf=v=>{const d=String(v).replace(/\D/g,'').slice(0,11);return d.replace(/^(\d{3})(\d{0,3})(\d{0,3})(\d{0,2}).*/,(m,a,b,c,e)=>a+(b?'.'+b:'')+(c?'.'+c:'')+(e?'-'+e:''))};
 const mTel=v=>{const x=String(v).replace(/\D/g,'').slice(0,11);if(x.length<=2)return x?'('+x:'';const n=x.slice(2);return`(${x.slice(0,2)}) `+(n.length>8?n.slice(0,5)+'-'+n.slice(5):n.length>4?n.slice(0,4)+'-'+n.slice(4):n)};
@@ -299,7 +306,14 @@ const revAng=m=>`Revisão ${m.toLocaleString('pt-BR')} km`;
 
 /* =============================== CLIENTE =============================== */
 const Client={me:null,ks:[],ups:[],
- async start(me){this.me=me;await this.load();this.render()},
+ async start(me){this.me=me;await this.load();this.sig=this.assin();this.render();
+  if(!this.timer){this.timer=setInterval(()=>this.poll(),60000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')this.poll()})}},
+ assin(){return JSON.stringify([this.ks.map(k=>[k.id,k.etapa,k.status,k.valor]),this.ups.map(u=>[u.id,u.status])])},
+ async poll(){if(!this.me||Admin.on||this.polling)return;this.polling=true;try{const antes=this.ups;await this.load();const s=this.assin();if(s!==this.sig){
+   const mud=this.ups.filter(u=>{const a=antes.find(x=>x.id===u.id);return a&&a.status!==u.status});const k=this.k,kAnt=JSON.parse(this.sig)[0].find(x=>k&&x[0]===k.id);
+   if(k&&k.etapa==='enviado'&&(!kAnt||kAnt[1]!=='enviado'))avisar('📄 Seu contrato está pronto','Confira os dados e baixe para assinar');
+   else if(mud.length)avisar(mud.some(u=>u.status==='Recusado')?'⚠️ A UKA pediu para reenviar algo':'✅ A UKA aprovou seu envio',mud.map(u=>(TIPOS[u.tipo]||u.tipo)+(u.angulo?' · '+u.angulo:'')).join(', '));
+   this.sig=s;if(!busy())this.render()}}catch(e){}finally{this.polling=false}},
  async load(){const[k,u]=await Promise.all([sb.from('contracts').select('*, cars(*)').eq('client_id',this.me.id).order('inicio',{ascending:false}),sb.from('uploads').select('*').eq('client_id',this.me.id).order('criado_em',{ascending:false}).limit(300)]);
   this.ks=k.data||[];this.ups=u.data||[]},
  get k(){return this.ks.find(x=>x.status==='Ativo')||this.ks[0]||null},
@@ -411,7 +425,14 @@ document.addEventListener('change',e=>{const t=e.target;if(t.dataset&&t.dataset.
 
 /* ============================ ADMINISTRADOR ============================ */
 const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
- async start(){this.on=true;await this.load();this.render()},
+ async start(){this.on=true;await this.load();this.seen=new Set([...this.ups.map(u=>'u'+u.id),...this.cls.map(c=>'c'+c.id)]);this.render();
+  if(!this.timer){this.timer=setInterval(()=>this.poll(),30000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')this.poll()})}},
+ async poll(){if(!this.on||this.polling)return;this.polling=true;try{await this.load();const novos=[];
+   for(const c of this.cls)if(!this.seen.has('c'+c.id)){this.seen.add('c'+c.id);novos.push(['🆕 Novo cliente',c.nome])}
+   for(const u of this.ups)if(!this.seen.has('u'+u.id)){this.seen.add('u'+u.id);const c=this.cl(u.client_id);novos.push(['📥 '+(TIPOS[u.tipo]||u.tipo)+(u.angulo?' · '+u.angulo:''),c?c.nome:''])}
+   if(novos.length){const pend=this.ups.filter(u=>u.status==='Pendente').length;try{navigator.setAppBadge&&navigator.setAppBadge(pend)}catch(e){}
+     if(novos.length===1)avisar(novos[0][0],novos[0][1]);else avisar(`📥 ${novos.length} envios novos`,[...new Set(novos.map(x=>x[1]).filter(Boolean))].join(', '))}
+   if(!busy())this.render();}catch(e){}finally{this.polling=false}},
  async load(){const r=await Promise.all([sb.from('cars').select('*').order('placa'),sb.from('clients').select('*').order('nome'),sb.from('contracts').select('*').order('inicio',{ascending:false}),sb.from('uploads').select('*').order('criado_em',{ascending:false}).limit(500)]);
   const er=r.find(x=>x.error);if(er)toast('Erro ao carregar: '+er.error.message);[this.cars,this.cls,this.ks,this.ups]=r.map(x=>x.data||[])},
  car(id){return this.cars.find(c=>c.id===id)},cl(id){return this.cls.find(c=>c.id===id)},
@@ -486,7 +507,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   await this.load();this.render();const tel=String(c.tel||'').replace(/\D/g,'').replace(/^(?!55)/,'55');
   modal(`<h2>✅ Cadastro de ${esc(c.nome.split(' ')[0])} aprovado</h2><p>${P.length} envio(s) aprovado(s).</p>${c.tel?`<a class="btn ok" style="width:100%" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${c.nome.split(' ')[0]}! Conferimos seus documentos e as fotos do carro: está tudo certo, cadastro aprovado. ✅ UKA RENTALS`)}" target="_blank" rel="noopener">Avisar o cliente no WhatsApp</a>`:''}<button style="width:100%;margin-top:8px" data-close>Fechar</button>`)},
  async v_pend(){const P=this.ups.filter(u=>u.status==='Pendente');const sig=await signed(P.filter(u=>isImg(u.caminho)).map(u=>u.caminho));const RD=this.ready();
-  $('#pane').innerHTML=`${this.cardsDocs()}${this.kmAlerts()}${RD.map(r=>`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Cadastro completo para conferir</h2><p><b>${esc(r.c.nome)}</b>${r.car?' · '+esc(r.car.placa):''} enviou os documentos e as 10 fotos da vistoria. <b>${r.pend}</b> item(ns) esperando você.</p><div class="row"><button class="pri" data-ficha="${r.c.id}">Conferir fotos e documentos</button><button class="ok" data-okall="${r.c.id}">Aprovar cadastro</button></div></section>`).join('')}<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
+  $('#pane').innerHTML=`${podeAvisar()?'<div class="note n-blue" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🔔 Quer receber aviso no celular quando um cliente enviar algo?</span><button class="sm pri" data-notif>Ativar avisos</button></div>':''}<p class="sub" style="margin:0 0 8px">Atualiza sozinho a cada 30 segundos.</p>${this.cardsDocs()}${this.kmAlerts()}${RD.map(r=>`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Cadastro completo para conferir</h2><p><b>${esc(r.c.nome)}</b>${r.car?' · '+esc(r.car.placa):''} enviou os documentos e as 10 fotos da vistoria. <b>${r.pend}</b> item(ns) esperando você.</p><div class="row"><button class="pri" data-ficha="${r.c.id}">Conferir fotos e documentos</button><button class="ok" data-okall="${r.c.id}">Aprovar cadastro</button></div></section>`).join('')}<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
  async v_cli(){$('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Clientes (${this.cls.length})</h2><button class="pri" data-newcli>+ Cliente</button></div>
   <div class="scroll"><table><thead><tr><th>Nome</th><th>E-mail de acesso</th><th>Telefone</th><th>Acesso</th><th></th></tr></thead><tbody>${this.cls.map(c=>`<tr><td><b>${esc(c.nome)}</b><div class="sub">${esc(c.cpf||'')}</div></td><td>${esc(c.email)}</td><td>${esc(c.tel||'')}</td><td>${c.user_id?'<span class="tag t-ok">Ativo</span>':'<span class="tag t-amb">Aguardando 1º acesso</span>'}</td><td class="row"><button class="sm pri" data-ficha="${c.id}">Ficha</button><button class="sm" data-editcli="${c.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>
   <p class="sub">Para o cliente entrar: cadastre o e-mail dele aqui, mande o link do app e peça para tocar em “Primeiro acesso” e criar a senha.</p></section>`},
@@ -545,10 +566,11 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   const{error}=await sb.from('uploads').update({status:ok?'Aprovado':'Recusado',motivo}).eq('id',id);if(error)return toast('Erro: '+error.message);
   if(ok&&(u.tipo==='odometro'||u.tipo==='vistoria')&&u.km&&u.car_id){const car=this.car(u.car_id);if(car&&(+u.km>(+car.km||0)))await sb.from('cars').update({km:u.km}).eq('id',u.car_id)}
   await this.load();toast(ok?'Aprovado.':'Recusado.');if($('#ov').classList.contains('on')&&$('#box h2')&&u.client_id)this.ficha(u.client_id);else this.render()}};
-document.addEventListener('click',e=>{if(!Admin.on)return;const b=e.target.closest('[data-tab],[data-ok],[data-no],[data-ficha],[data-newcli],[data-editcli],[data-newcar],[data-editcar],[data-newctr],[data-editctr],[data-okall],[data-okdocs],[data-prep],[data-adpdf],[data-adblank]');if(!b)return;const d=b.dataset;
+document.addEventListener('click',e=>{if(!Admin.on)return;const b=e.target.closest('[data-tab],[data-ok],[data-no],[data-ficha],[data-newcli],[data-editcli],[data-newcar],[data-editcar],[data-newctr],[data-editctr],[data-okall],[data-okdocs],[data-prep],[data-adpdf],[data-adblank],[data-notif]');if(!b)return;const d=b.dataset;
   if(d.tab){Admin.tab=d.tab;Admin.render()}if(d.ok)Admin.decide(d.ok,true);if(d.no)Admin.decide(d.no,false);if(d.ficha)Admin.ficha(d.ficha);
   if(d.newcli!==undefined)Admin.editCli();if(d.editcli)Admin.editCli(Admin.cl(d.editcli));if(d.newcar!==undefined)Admin.editCar();if(d.editcar)Admin.editCar(Admin.car(d.editcar));
   if(d.okall)Admin.okAll(d.okall);if(d.okdocs)Admin.okDocs(d.okdocs);if(d.prep)Admin.prep(d.prep);
+  if(d.notif!==undefined){Notification.requestPermission().then(r=>{toast(r==='granted'?'Avisos ativados neste celular.':'Avisos não autorizados.');Admin.render()})}
   if(d.adblank!==undefined)gerarPDF(ctrDados({},{},{}),'contrato-uka-em-branco.pdf').catch(x=>toast(x.message));
   if(d.adpdf){const k=Admin.ks.find(x=>x.id===d.adpdf);if(k)gerarPDF(ctrDados(Admin.cl(k.client_id),k,Admin.car(k.car_id)),'contrato.pdf').catch(x=>toast(x.message))}
   if(d.newctr!==undefined)Admin.editCtr();if(d.editctr)Admin.editCtr(Admin.ks.find(k=>k.id===d.editctr))});
