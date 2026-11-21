@@ -233,7 +233,7 @@ function ctrBlocos(d){const T=ctrTabelas(d),cau=vmoney(d.caucao);return[
  ['p','8.3. O valor da multa deve ser pago ao LOCADOR em até 5 (cinco) dias após o aviso, ou será descontado da caução.'],
  ['h','CLÁUSULA 9 — ACIDENTE, ROUBO E SEGURO'],
  ['p','9.1. Em acidente, roubo ou furto, o LOCATÁRIO deve avisar o LOCADOR na hora e registrar boletim de ocorrência em até 24 horas.'],
- ['p',`9.2. Se o veículo tiver seguro, o LOCATÁRIO paga a franquia de ${vmoney(d.franquia)} quando tiver culpa ou quando não houver outro responsável identificado.`],
+ ['p','9.2. Se o veículo tiver seguro e o LOCATÁRIO tiver culpa no acidente, ou não houver outro responsável identificado, o LOCATÁRIO paga ao LOCADOR o valor da franquia do seguro.'],
  ['p','9.3. Se não houver seguro, ou se o seguro negar a cobertura por culpa do LOCATÁRIO (embriaguez, uso proibido, condutor não autorizado, chave deixada no veículo), o LOCATÁRIO paga todos os danos, inclusive aos terceiros.'],
  ['p','9.4. Os dias em que o veículo ficar parado por acidente com culpa do LOCATÁRIO são cobrados como aluguel.'],
  ['h','CLÁUSULA 10 — RASTREADOR, BLOQUEADOR E SEGURO DO RASTREADOR (PAGOS PELO LOCATÁRIO)'],
@@ -270,6 +270,17 @@ async function gerarPDF(d,arquivo){const J=await loadJsPDF();const doc=new J({un
 const kvHtml=rows=>`<table>${rows.map(([k,v])=>`<tr><th style="width:42%">${esc(k)}</th><td>${v===BL||String(v).includes(BL)?`<span style="color:var(--red)">${esc(v)}</span>`:esc(v)}</td></tr>`).join('')}</table>`;
 const ESTCIV=['Solteiro(a)','Casado(a)','União estável','Divorciado(a)','Separado(a)','Viúvo(a)'];
 const APPS=['Uber','99','inDrive','Vários apps','Particular','Outro'];
+
+/* ======================= CONTROLE DE KM ======================= */
+const LIM_KM=10000,REV_KM=10000;
+function kmInfo(k,ups,car){if(!k)return null;const lim=+k.km_limite_mes||LIM_KM,rate=k.km_excedente??0.5;
+  const L=ups.filter(u=>u.km&&u.status!=='Recusado'&&(u.tipo==='odometro'||u.tipo==='vistoria')&&(!u.contract_id||u.contract_id===k.id)).map(u=>({km:+u.km,data:(u.data||u.criado_em||'').slice(0,10)})).filter(x=>x.data).sort((a,b)=>a.data.localeCompare(b.data)||a.km-b.km);
+  const base0=k.km_entrega!=null?+k.km_entrega:(L[0]?L[0].km:(car&&car.km?+car.km:null));if(base0==null||!L.length)return{lim,rate,rodMes:0,exc:0,total:0,ultimo:null,mesIni:k.inicio,marco:0};
+  let mi=k.inicio?new Date(k.inicio+'T12:00:00'):new Date(L[0].data+'T12:00:00'),n=0;while(n<600){const nx=new Date(mi);nx.setMonth(nx.getMonth()+1);if(iso(nx)>TODAY)break;mi=nx;n++}const mesIni=iso(mi);
+  const mx=A=>A.reduce((m,x)=>x.km>m.km?x:m,A[0]),antes=L.filter(x=>x.data<mesIni),baseMes=antes.length?Math.max(base0,mx(antes).km):base0,ult=mx(L);
+  const rodMes=Math.max(0,ult.km-baseMes),exc=Math.max(0,rodMes-lim),total=Math.max(0,ult.km-base0),marco=Math.floor(total/REV_KM)*REV_KM;
+  return{lim,rate,rodMes,exc,total,ultimo:ult,mesIni,marco,base0}}
+const revAng=m=>`Revisão ${m.toLocaleString('pt-BR')} km`;
 
 /* =============================== CLIENTE =============================== */
 const Client={me:null,ks:[],ups:[],
@@ -330,16 +341,27 @@ const Client={me:null,ks:[],ups:[],
    if(!pagS&&dl===0){badge=1;payCard=`<section class="card" style="border:2px solid var(--amb);background:var(--amb2)"><h2>💰 Hoje é dia de pagar o aluguel</h2><p><b>${brl(v)}</b> por Pix, até hoje (${esc(diaSemana(TODAY))}).</p><p class="sub" style="color:var(--ink)">Não atrase: a partir do 1º dia de atraso tem <b>multa de 10%</b> + <b>juros de 1% ao mês</b>. Com mais de 5 dias de atraso o carro é <b>bloqueado</b> e você <b>perde a caução</b>.</p>${pixBtn}</section>`}
    else if(!pagS&&dl>0){badge=1;const multa=v*0.10,juros=v*0.01/30*dl,falta=5-dl;payCard=`<section class="card" style="border:2px solid var(--red);background:var(--red2)"><h2>⚠️ Aluguel atrasado há ${dl} dia${dl>1?'s':''}</h2><p>O aluguel de ${fd(cy)} (${brl(v)}) ainda não foi pago.</p><p>Hoje o valor é <b>${brl(v+multa+juros)}</b> (${brl(v)} + multa de 10% ${brl(multa)} + juros ${brl(juros)}).</p><p><b>${falta>0?`Faltam ${falta} dia${falta>1?'s':''} para o carro ser bloqueado e você perder a caução.`:'O prazo de 5 dias passou: o carro pode ser bloqueado e recolhido a qualquer momento.'}</b></p>${pixBtn}</section>`}
    else if(amanha)payCard=`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>📅 Amanhã é dia de pagar o aluguel</h2><p><b>${brl(v)}</b> por Pix, amanhã (${esc(diaSemana(prox))}, ${fd(prox)}). Pague em dia e evite multa e juros.</p><div class="row"><button class="sm" data-pix>Copiar chave Pix</button></div></section>`}
+  const KI=kmInfo(k,U,car);let kmCard='',revCard='';
+  if(KI&&KI.ultimo&&libera){const pct=Math.min(100,Math.round(KI.rodMes/KI.lim*100));
+   if(KI.exc>0)kmCard=`<section class="card" style="border:2px solid var(--red);background:var(--red2)"><h2>🚩 Você passou de ${KI.lim.toLocaleString('pt-BR')} km neste mês</h2><p>Desde ${fd(KI.mesIni)} você rodou <b>${KI.rodMes.toLocaleString('pt-BR')} km</b>: <b>${KI.exc.toLocaleString('pt-BR')} km acima do limite</b>.</p><p>Pelo contrato (cláusula 5.2), cada km a mais custa ${brl(KI.rate)}: <b>${brl(KI.exc*KI.rate)}</b> até agora, cobrados junto com o próximo aluguel.</p></section>`;
+   else if(KI.rodMes>=KI.lim*0.9)kmCard=`<section class="card" style="border:2px solid var(--amb);background:var(--amb2)"><h2>⚠️ Perto do limite de km</h2><p>Você já rodou <b>${KI.rodMes.toLocaleString('pt-BR')} km</b> neste mês (desde ${fd(KI.mesIni)}). O limite é ${KI.lim.toLocaleString('pt-BR')} km; acima disso, ${brl(KI.rate)} por km.</p></section>`;
+   const rAng=KI.marco>=REV_KM?revAng(KI.marco):null,rUp=rAng&&U.find(u=>u.tipo==='outro'&&u.angulo===rAng&&u.status!=='Recusado'),rRec=rAng&&U.find(u=>u.tipo==='outro'&&u.angulo===rAng);
+   if(rAng&&!(rUp&&rUp.status==='Aprovado')){badge=1;revCard=`<section class="card" style="border:2px solid var(--amb);background:var(--amb2)"><h2>🔧 Hora de levar o carro na oficina</h2><p>O carro já rodou <b>${KI.total.toLocaleString('pt-BR')} km</b> desde a entrega e chegou na revisão dos <b>${KI.marco.toLocaleString('pt-BR')} km</b>. Leve o carro na oficina indicada pela UKA (a revisão é paga pela UKA).</p>
+     ${rUp?`<div class="note n-blue">Nota da oficina enviada em ${fdt(rUp.criado_em)} · ${stTag(rUp.status)}. A UKA vai confirmar.</div>`:`${rRec&&rRec.status==='Recusado'?`<div class="note n-red">A UKA não confirmou: ${esc(rRec.motivo||'envie de novo')}.</div>`:''}<ol style="padding-left:20px;margin:6px 0 10px"><li>Combine com a UKA o dia e a oficina.</li><li>Depois de levar, toque em <b>Já levei</b> e envie a foto da nota ou da ordem de serviço.</li></ol>
+     <div class="row">${C.WHATSAPP?`<a class="btn" href="https://wa.me/${esc(C.WHATSAPP)}?text=${encodeURIComponent(`Olá! Sou ${me.nome}. O carro ${car&&car.placa?car.placa+' ':''}chegou na revisão dos ${KI.marco.toLocaleString('pt-BR')} km. Em qual oficina e quando posso levar?`)}" target="_blank" rel="noopener">Combinar a oficina</a>`:''}<label class="btn ok" style="position:relative">Já levei: enviar foto da nota<input type="file" accept="image/*,application/pdf" data-up="outro" data-ang="${esc(rAng)}" style="position:absolute;opacity:0;width:1px;height:1px"></label></div>`}</section>`}
+   kmCard+='';KI.pct=pct}
   try{if(navigator.setAppBadge){badge?navigator.setAppBadge(1):navigator.clearAppBadge()}}catch(e){}
   $('#app').innerHTML=`<h1>Olá, ${esc(me.nome.split(' ')[0])}!</h1>
   ${payCard}
+  ${kmCard}
+  ${revCard}
   ${fimCard}
   ${done?'':docsCard}
   ${espera}
   ${ctrCard&&!(ass&&ass.status==='Aprovado')?ctrCard:''}
   ${vOk?'':vistCard}
   ${!k?'':`
-  <section class="card"><h2>Meu carro</h2><div class="row" style="gap:16px">${plate(car&&car.placa)}<div><b>${esc(car?[car.marca,car.modelo].filter(Boolean).join(' '):'—')}</b><div class="sub">${esc([car&&car.ano,car&&car.cor].filter(Boolean).join(' · '))}</div><div class="sub">Km registrado: ${kmf(car&&car.km)}</div></div></div></section>
+  <section class="card"><h2>Meu carro</h2><div class="row" style="gap:16px">${plate(car&&car.placa)}<div><b>${esc(car?[car.marca,car.modelo].filter(Boolean).join(' '):'—')}</b><div class="sub">${esc([car&&car.ano,car&&car.cor].filter(Boolean).join(' · '))}</div><div class="sub">Km registrado: ${kmf(KI&&KI.ultimo?KI.ultimo.km:car&&car.km)}</div>${KI&&KI.ultimo&&libera?`<div style="margin-top:6px;min-width:200px"><div class="sub">Km neste mês (desde ${fd(KI.mesIni)}): <b>${KI.rodMes.toLocaleString('pt-BR')} de ${KI.lim.toLocaleString('pt-BR')}</b></div><div style="background:var(--bg2);border-radius:20px;height:10px;overflow:hidden;margin-top:3px"><div style="height:100%;width:${KI.pct}%;background:${KI.exc?'var(--red)':KI.pct>=90?'var(--amb)':'var(--grn)'}"></div></div></div>`:''}</div></div></section>
   ${novo?(ass&&ass.status==='Aprovado'?ctrCard:''):`  <section class="card"><h2>Meu contrato</h2><p class="sub">Início ${fd(k.inicio)}${k.fim?' · até '+fd(k.fim):''} · ${brl(k.valor)} por ${esc((k.periodo||'semana').toLowerCase().replace('semanal','semana').replace('mensal','mês').replace('quinzenal','quinzena').replace('diária','dia'))} · limite ${(+k.km_limite_mes||10000).toLocaleString('pt-BR')} km/mês</p>
    ${ass?`<div class="note ${ass.status==='Aprovado'?'n-ok':'n-amb'}">Contrato assinado enviado em ${fdt(ass.criado_em)} · ${stTag(ass.status)} <button class="sm" data-open="${esc(ass.caminho)}">Ver</button></div>`:`<div class="note n-amb"><b>Falta enviar o contrato assinado.</b><br>1. Baixe o contrato abaixo. 2. Assine no gov.br em <a href="https://www.gov.br/governodigital/pt-br/identidade/assinatura-eletronica" target="_blank" rel="noopener">Assinatura eletrônica gov.br</a>. 3. Envie aqui o PDF assinado.</div>`}
    <div class="row">${k.pdf_original?`<button data-open="${esc(k.pdf_original)}">Baixar contrato para assinar</button>`:'<span class="sub">O contrato para assinar ainda não foi anexado pela UKA.</span>'}
@@ -379,7 +401,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   const er=r.find(x=>x.error);if(er)toast('Erro ao carregar: '+er.error.message);[this.cars,this.cls,this.ks,this.ups]=r.map(x=>x.data||[])},
  car(id){return this.cars.find(c=>c.id===id)},cl(id){return this.cls.find(c=>c.id===id)},
  async render(){const P=this.ups.filter(u=>u.status==='Pendente');
-  const T=[['pend',`${this.ready().length||this.cardsDocs()?'🔔 ':''}Para conferir (${P.length})`],['cli','Clientes'],['ctr','Contratos'],['car','Carros'],['imp','Importar']];
+  const T=[['pend',`${this.ready().length||this.cardsDocs()||this.kmAlerts()?'🔔 ':''}Para conferir (${P.length})`],['cli','Clientes'],['ctr','Contratos'],['car','Carros'],['imp','Importar']];
   $('#app').innerHTML=`<div class="tabs" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" class="${this.tab===k?'on':''}">${l}</button>`).join('')}</div><div id="pane"></div>`;
   await this['v_'+this.tab]()},
  upRow(u,sig,actions=true){const c=this.cl(u.client_id),car=this.car(u.car_id);
@@ -392,6 +414,11 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
  docSt(c){const U=this.ups.filter(u=>u.client_id===c.id&&u.tipo==='outro'&&u.status!=='Recusado');const req=DOCS.filter(x=>x.req);
   const sent=req.every(x=>U.some(u=>u.angulo===x.t)),pend=U.filter(u=>u.status==='Pendente').length,aprov=req.every(x=>U.some(u=>u.angulo===x.t&&u.status==='Aprovado'));
   const kk=this.ks.filter(k=>k.client_id===c.id),temCtr=kk.some(k=>k.etapa||k.status==='Ativo');return{sent,pend,aprov,temCtr,perfil:!!(c.estado_civil&&c.contato_emerg)}},
+ kmAlerts(){return this.ks.filter(k=>k.status==='Ativo').map(k=>{const c=this.cl(k.client_id),car=this.car(k.car_id),U=this.ups.filter(u=>u.client_id===k.client_id);const KI=kmInfo(k,U,car);if(!c||!KI||!KI.ultimo)return'';let h='';
+   if(KI.exc>0)h+=`<section class="card" style="border:2px solid var(--red)"><h2>🚩 ${esc(c.nome.split(' ')[0])} passou de ${KI.lim.toLocaleString('pt-BR')} km no mês</h2><p>${esc(car?car.placa:'')} · desde ${fd(KI.mesIni)}: <b>${KI.rodMes.toLocaleString('pt-BR')} km</b> (${KI.exc.toLocaleString('pt-BR')} km acima) = <b>${brl(KI.exc*KI.rate)}</b> para cobrar no próximo aluguel.</p></section>`;
+   const rAng=KI.marco>=REV_KM?revAng(KI.marco):null,rUp=rAng&&U.find(u=>u.tipo==='outro'&&u.angulo===rAng&&u.status!=='Recusado');
+   if(rAng&&!(rUp&&rUp.status==='Aprovado'))h+=`<section class="card" style="border:2px solid var(--amb)"><h2>🔧 ${esc(car?car.placa:'Carro')} chegou na revisão dos ${KI.marco.toLocaleString('pt-BR')} km</h2><p>${esc(c.nome)} · ${KI.total.toLocaleString('pt-BR')} km rodados desde a entrega. ${rUp?'<b>O cliente enviou a nota da oficina</b>: confira abaixo e aprove.':'Aguardando o cliente levar na oficina (ele já recebeu o aviso no app).'}</p><button class="sm" data-ficha="${c.id}">Abrir ficha</button></section>`;
+   return h}).join('')},
  cardsDocs(){return this.cls.map(c=>{const st=this.docSt(c);
    if(st.sent&&st.pend&&!st.temCtr)return`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Documentos para conferir</h2><p><b>${esc(c.nome)}</b> enviou a CNH, o comprovante de endereço e a selfie${st.perfil?' e os dados do contrato':''}. Confira e aprove para preparar o contrato.</p><div class="row"><button class="pri" data-ficha="${c.id}">Conferir documentos</button><button class="ok" data-okdocs="${c.id}">Aprovar documentos</button></div></section>`;
    if(st.aprov&&!st.temCtr)return`<section class="card" style="border:2px solid var(--grn)"><h2>🚗 Qual carro você vai alugar para ${esc(c.nome.split(' ')[0])}?</h2><p>Os documentos de <b>${esc(c.nome)}</b> estão aprovados. Escolha o carro e o contrato vai pronto para ele conferir e assinar.</p><button class="ok" data-prep="${c.id}">Escolher o carro e enviar o contrato</button></section>`;
@@ -410,7 +437,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
    <h3>2. Valores</h3><div class="grid">${inp('inicio','Início da locação',k0.inicio||TODAY,'date','required')}${inp('valor','Aluguel por semana (R$)',k0.valor,'number','required')}
     <label>Dia do pagamento<select name="dia_pagamento">${DIAS_SEM.map(x=>`<option ${(k0.dia_pagamento||diaSemana(k0.inicio||TODAY))===x?'selected':''}>${x}</option>`).join('')}</select></label>
     ${inp('caucao','Caução (R$)',k0.caucao??1500,'number')}${inp('km_entrega','Km na entrega',k0.km_entrega,'number')}${inp('chaves','Nº de chaves',k0.chaves||1,'number')}
-    ${inp('km_excedente','Km acima do limite (R$ por km)',k0.km_excedente,'number')}${inp('franquia','Franquia do seguro (R$)',k0.franquia,'number')}${inp('multa_odometro','Multa por mexer no odômetro (R$)',k0.multa_odometro,'number')}</div>
+    ${inp('km_excedente','Km acima do limite (R$ por km)',k0.km_excedente,'number')}${inp('multa_odometro','Multa por mexer no odômetro (R$)',k0.multa_odometro,'number')}</div>
    <details style="margin-top:10px"><summary style="cursor:pointer;font-weight:600">3. Conferir dados do cliente (vieram dos documentos)</summary><div class="row" style="margin:8px 0">${docBtns}</div><div class="grid">
     ${inp('nome','Nome completo',c.nome,'text','required')}${inp('cpf','CPF',c.cpf)}${inp('rg','RG e órgão emissor',c.rg)}${inp('nasc','Nascimento',c.nasc,'date')}
     ${inp('cnh','CNH nº',c.cnh)}${inp('cnh_cat','Categoria',c.cnh_cat)}${inp('cnh_venc','Validade da CNH',c.cnh_venc,'date')}${inp('tel','Telefone',c.tel)}
@@ -424,7 +451,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   const num=v=>v===''?null:+v,read=()=>{const k={...k0},cl={...c};for(const n of N)k[n]=['valor','caucao','km_entrega','chaves','km_excedente','franquia','multa_odometro'].includes(n)?num(f.elements[n].value):(f.elements[n].value||null);for(const n of CL)cl[n]=f.elements[n].value.trim()||null;return{k,cl,car:this.car(k.car_id)}};
   const info=()=>{const x=this.car(f.car_id.value);$('#carinfo').innerHTML=x?`${esc([x.marca,x.modelo].filter(Boolean).join(' '))} · ${esc(x.ano||'')} · ${esc(x.cor||'')} · Renavam ${esc(x.renavam||'—')} · Chassi ${esc(x.chassi||'—')}`:'';
     if(x&&!f.km_entrega.value&&x.km)f.km_entrega.value=x.km;if(x&&!f.valor.value&&x.valor_semanal)f.valor.value=x.valor_semanal;
-    const{k,cl,car}=read(),T=ctrTabelas(ctrDados(cl,k,car)),falta=[...T.cli,...T.car,...T.val].filter(([,v])=>String(v).includes(BL)).map(([a])=>a).concat(k.franquia==null?['Franquia do seguro']:[],k.multa_odometro==null?['Multa do odômetro']:[]);
+    const{k,cl,car}=read(),T=ctrTabelas(ctrDados(cl,k,car)),falta=[...T.cli,...T.car,...T.val].filter(([,v])=>String(v).includes(BL)).map(([a])=>a).concat(k.multa_odometro==null?['Multa do odômetro']:[]);
     $('#pcwarn').innerHTML=falta.length?`<div class="note n-amb">Vai em branco no contrato: ${esc(falta.join(', '))}. Você pode enviar assim ou completar antes.</div>`:''};
   f.car_id.onchange=info;f.oninput=e=>{if(e.target.name==='inicio')f.dia_pagamento.value=diaSemana(f.inicio.value);info()};info();
   $('#pcprev').onclick=async()=>{const{k,cl,car}=read();try{await gerarPDF(ctrDados(cl,k,car),'previa-contrato.pdf')}catch(x){toast(x.message)}};
@@ -443,7 +470,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   await this.load();this.render();const tel=String(c.tel||'').replace(/\D/g,'').replace(/^(?!55)/,'55');
   modal(`<h2>✅ Cadastro de ${esc(c.nome.split(' ')[0])} aprovado</h2><p>${P.length} envio(s) aprovado(s).</p>${c.tel?`<a class="btn ok" style="width:100%" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${c.nome.split(' ')[0]}! Conferimos seus documentos e as fotos do carro: está tudo certo, cadastro aprovado. ✅ UKA RENTALS`)}" target="_blank" rel="noopener">Avisar o cliente no WhatsApp</a>`:''}<button style="width:100%;margin-top:8px" data-close>Fechar</button>`)},
  async v_pend(){const P=this.ups.filter(u=>u.status==='Pendente');const sig=await signed(P.filter(u=>isImg(u.caminho)).map(u=>u.caminho));const RD=this.ready();
-  $('#pane').innerHTML=`${this.cardsDocs()}${RD.map(r=>`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Cadastro completo para conferir</h2><p><b>${esc(r.c.nome)}</b>${r.car?' · '+esc(r.car.placa):''} enviou os documentos e as 10 fotos da vistoria. <b>${r.pend}</b> item(ns) esperando você.</p><div class="row"><button class="pri" data-ficha="${r.c.id}">Conferir fotos e documentos</button><button class="ok" data-okall="${r.c.id}">Aprovar cadastro</button></div></section>`).join('')}<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
+  $('#pane').innerHTML=`${this.cardsDocs()}${this.kmAlerts()}${RD.map(r=>`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Cadastro completo para conferir</h2><p><b>${esc(r.c.nome)}</b>${r.car?' · '+esc(r.car.placa):''} enviou os documentos e as 10 fotos da vistoria. <b>${r.pend}</b> item(ns) esperando você.</p><div class="row"><button class="pri" data-ficha="${r.c.id}">Conferir fotos e documentos</button><button class="ok" data-okall="${r.c.id}">Aprovar cadastro</button></div></section>`).join('')}<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
  async v_cli(){$('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Clientes (${this.cls.length})</h2><button class="pri" data-newcli>+ Cliente</button></div>
   <div class="scroll"><table><thead><tr><th>Nome</th><th>E-mail de acesso</th><th>Telefone</th><th>Acesso</th><th></th></tr></thead><tbody>${this.cls.map(c=>`<tr><td><b>${esc(c.nome)}</b><div class="sub">${esc(c.cpf||'')}</div></td><td>${esc(c.email)}</td><td>${esc(c.tel||'')}</td><td>${c.user_id?'<span class="tag t-ok">Ativo</span>':'<span class="tag t-amb">Aguardando 1º acesso</span>'}</td><td class="row"><button class="sm pri" data-ficha="${c.id}">Ficha</button><button class="sm" data-editcli="${c.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>
   <p class="sub">Para o cliente entrar: cadastre o e-mail dele aqui, mande o link do app e peça para tocar em “Primeiro acesso” e criar a senha.</p></section>`},
