@@ -92,6 +92,10 @@ textarea.in{min-height:76px}
 .login .logo{font-size:44px;font-weight:800;letter-spacing:.12em;color:var(--gold)}
 :focus-visible{outline:2px solid var(--gold2);outline-offset:2px}
 .hide{display:none!important}
+.agw{display:grid;grid-template-columns:minmax(0,1fr);gap:0 22px}
+@media(min-width:900px){main.wide{max-width:1120px}.agw{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:10px}.week button{border:1px solid var(--line);background:var(--card);border-radius:14px;padding:8px 0;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:16px;font-weight:600;position:relative}.week button small{font-size:11px;color:var(--mut);font-weight:500}.week button.today{border-color:var(--gold);color:var(--gold2)}.week i{width:5px;height:5px;border-radius:3px;background:var(--gold2)}.week i.n{background:transparent}
+@media(min-width:780px){nav.tabs{left:50%;right:auto;width:720px;transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0}.fab{right:calc(50% - 350px)}}
 </style>
 </head>
 <body>
@@ -194,7 +198,7 @@ function vHoje(){const h=new Date().getHours(),nome=(me&&me.email||'').startsWit
  <div class="card hero"><div class="lbl">Saldo nas contas</div><div class="big ${saldoTotal()<0?'neg':''}">${brl(saldoTotal())}</div>
   <div class="grid2" style="margin-top:12px"><div class="mini"><span class="lbl">Entrou em ${MES[+ym.slice(5)-1]}</span><b class="pos">${brl(R.rec)}</b></div><div class="mini"><span class="lbl">Gastou em ${MES[+ym.slice(5)-1]}</span><b class="neg">${brl(R.desp)}</b></div></div>
   ${totPg?`<div class="row sp" style="margin-top:12px"><span class="lbl">A pagar nos próximos 7 dias</span><b class="gold">${brl(totPg)}</b></div>`:''}</div>
- <h3>Agenda</h3><div class="list">${ag.map(evItem).join('')||'<div class="empty">Nada marcado para hoje e amanhã.</div>'}</div>
+ <h3>Agenda</h3><div class="week">${[...Array(7)].map((_,i)=>{const d=addD(TODAY(),i),n=agendaDe(d,d).length;return`<button data-goday="${d}" class="${i?'':'today'}" aria-label="${fdShort(d)}: ${n} compromisso(s)"><small>${WD[D0(d).getDay()]}</small>${+d.slice(8)}<i class="${n?'':'n'}"></i></button>`}).join('')}</div><div class="list">${ag.map(evItem).join('')||'<div class="empty">Nada marcado para hoje e amanhã.</div>'}</div>
  <h3>Contas a pagar</h3><div class="list">${pg.map(pagarItem).join('')||'<div class="empty">Nenhuma conta vencendo nos próximos 7 dias. 👌</div>'}</div>
  <h3>Tarefas</h3><div class="list">${tar.map(tarItem).join('')||'<div class="empty">Sem tarefas para hoje.</div>'}</div>
  ${orc.length?`<h3>Orçamento do mês</h3><div class="card">${orc.map(budgetRow).join('')}</div>`:''}`}
@@ -202,13 +206,14 @@ function budgetRow({c,g,p}){return`<div style="margin:6px 0 12px"><div class="ro
 
 function vAgenda(){const ym=selDay.slice(0,7),first=D0(ym+'-01'),start=addD(ym+'-01',-first.getDay()),days=[...Array(42)].map((_,i)=>addD(start,i)),occ=agendaDe(start,days[41]);
  const PG=new Set(aPagar().map(p=>p.data)),has=d=>({ev:occ.some(o=>o.day===d),pg:PG.has(d),tar:S.tar.some(t=>!t.feito&&t.prazo===d)});
- const dia=occ.filter(o=>o.day===selDay),pg=aPagar().filter(p=>p.data===selDay),tar=S.tar.filter(t=>t.prazo===selDay);
+ const prox=agendaDe(TODAY(),addD(TODAY(),30)).filter(o=>o.e.dia_todo||o.ini>=new Date(Date.now()-36e5)).slice(0,12),dia=occ.filter(o=>o.day===selDay),pg=aPagar().filter(p=>p.data===selDay),tar=S.tar.filter(t=>t.prazo===selDay);
  return`<div class="row sp" style="margin-top:14px"><button class="ib" data-cal="-1" aria-label="Mês anterior">‹</button><h2 style="margin:0;text-transform:capitalize">${mLabel(ym)}</h2><button class="ib" data-cal="1" aria-label="Próximo mês">›</button></div>
- <div class="card" style="margin-top:12px;padding:10px"><div class="cal">${WD.map(w=>`<div class="wd">${w}</div>`).join('')}${days.map(d=>{const h=has(d);return`<button data-day="${d}" class="${d.slice(0,7)!==ym?'out':''} ${d===TODAY()?'today':''}" aria-pressed="${d===selDay}" aria-label="${fdShort(d)}">${+d.slice(8)}<span class="dots">${h.ev?'<i></i>':''}${h.pg?'<i class="r"></i>':''}${h.tar?'<i class="b"></i>':''}</span></button>`}).join('')}</div></div>
+ <div class="agw"><div><div class="card" style="margin-top:12px;padding:10px"><div class="cal">${WD.map(w=>`<div class="wd">${w}</div>`).join('')}${days.map(d=>{const h=has(d);return`<button data-day="${d}" class="${d.slice(0,7)!==ym?'out':''} ${d===TODAY()?'today':''}" aria-pressed="${d===selDay}" aria-label="${fdShort(d)}">${+d.slice(8)}<span class="dots">${h.ev?'<i></i>':''}${h.pg?'<i class="r"></i>':''}${h.tar?'<i class="b"></i>':''}</span></button>`}).join('')}</div></div>
+ <h3>Próximos 30 dias</h3><div class="list">${prox.map(evItem).join('')||'<div class="empty">Nenhum compromisso marcado.</div>'}</div></div><div>
  <div class="row sp"><h3>${selDay===TODAY()?'Hoje':WD[D0(selDay).getDay()]+', '+fdShort(selDay)}</h3><button class="btn sm" data-novo="ev">+ Compromisso</button></div>
  <div class="list">${dia.map(evItem).join('')}${pg.map(pagarItem).join('')}${tar.map(tarItem).join('')}${!dia.length&&!pg.length&&!tar.length?'<div class="empty">Dia livre.</div>':''}</div>
  <div class="row sp"><h3>Todas as tarefas</h3><button class="btn sm" data-novo="tar">+ Tarefa</button></div>
- <div class="list">${S.tar.filter(t=>!t.feito).sort((a,b)=>(a.prazo||'9')<(b.prazo||'9')?-1:1).map(tarItem).join('')||'<div class="empty">Nenhuma tarefa pendente.</div>'}</div>`}
+ <div class="list">${S.tar.filter(t=>!t.feito).sort((a,b)=>(a.prazo||'9')<(b.prazo||'9')?-1:1).map(tarItem).join('')||'<div class="empty">Nenhuma tarefa pendente.</div>'}</div></div></div>`}
 
 function vDinheiro(){const R=resumoMes(month),G=gastoCat(month),cats=Object.entries(G).sort((a,b)=>b[1]-a[1]),mx=cats.length?cats[0][1]:1;
  let L=doMes(month);if(filt==='desp')L=L.filter(isGasto);if(filt==='rec')L=L.filter(l=>l.tipo==='receita');if(filt==='cartao')L=L.filter(l=>l.cartao_id);if(filt==='apagar')L=L.filter(l=>!l.pago);
@@ -243,7 +248,7 @@ function vMetas(){const ym=TODAY().slice(0,7),G=gastoCat(ym),cs=S.cat.filter(c=>
 
 const TABS=[['hoje','🏠','Hoje',vHoje],['agenda','📅','Agenda',vAgenda],['dinheiro','💸','Dinheiro',vDinheiro],['carteira','💳','Carteira',vCarteira],['metas','🎯','Metas',vMetas]];
 function render(){const t=TABS.find(x=>x[0]===tab);const y=scrollY;
- app.innerHTML=`<header class="top"><div class="brand">LIFE HG<small>${WD[new Date().getDay()]}, ${fdShort(TODAY())}</small></div><button class="ib" id="cfg" aria-label="Ajustes">⚙️</button></header><main>${t[3]()}</main>
+ app.innerHTML=`<header class="top"><div class="brand">LIFE HG<small>${WD[new Date().getDay()]}, ${fdShort(TODAY())}</small></div><button class="ib" id="cfg" aria-label="Ajustes">⚙️</button></header><main class="${tab==='agenda'?'wide':''}">${t[3]()}</main>
  <button class="fab" id="fab" aria-label="Adicionar">+</button><nav class="tabs">${TABS.map(([k,i,n])=>`<button data-tab="${k}" ${k===tab?'aria-current="page"':''}><span>${i}</span>${n}</button>`).join('')}</nav>`;scrollTo(0,y)}
 
 /* ---------------- formulários ---------------- */
@@ -394,6 +399,7 @@ document.addEventListener('click',safe(async e=>{const b=e.target.closest('butto
  if(b.id==='fab')return fFab();if(b.id==='cfg')return fCfg();
  if(d.cal){selDay=addM(selDay.slice(0,7),+d.cal)+'-01';render();return}
  if(d.day){selDay=d.day;render();return}
+ if(d.goday){selDay=d.goday;tab='agenda';scrollTo(0,0);render();return}
  if(d.mes){month=addM(month,+d.mes);render();return}
  if(d.filt){filt=d.filt;render();return}
  if(d.lan){const l=S.lan.find(x=>x.id===d.lan);if(l)fLan(l);return}
@@ -407,9 +413,9 @@ document.addEventListener('change',safe(async e=>{const t=e.target;if(t.dataset&
 
 /* ---------------- avisos (Web Push) ---------------- */
 const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1),standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone;
-const pushOk=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;let pushOn=false,swReg=null;
+const pushOk=()=>!window.__noPush&&'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;let pushOn=false,swReg=null;
 const u8=s=>{const p='='.repeat((4-s.length%4)%4),b=atob((s+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(b,c=>c.charCodeAt(0))};
-function pushMsg(){if(pushOn)return'🔔 Avisos ligados neste celular: lembretes da agenda e contas a vencer.';if(isIOS&&!standalone())return'No iPhone, primeiro instale: toque em Compartilhar → "Adicionar à Tela de Início" e abra pelo ícone LIFE HG.';if(!pushOk())return'Este navegador não recebe avisos.';return'Receba lembretes dos compromissos e das contas, mesmo com o app fechado.'}
+function pushMsg(){if(window.__noPush)return'Os avisos chegam pelo app LIFE HG instalado no celular. Aqui você vê e lança tudo, no mesmo banco.';if(pushOn)return'🔔 Avisos ligados neste celular: lembretes da agenda e contas a vencer.';if(isIOS&&!standalone())return'No iPhone, primeiro instale: toque em Compartilhar → "Adicionar à Tela de Início" e abra pelo ícone LIFE HG.';if(!pushOk())return'Este navegador não recebe avisos.';return'Receba lembretes dos compromissos e das contas, mesmo com o app fechado.'}
 async function pushSetup(ask){try{if(!pushOk()||!swReg)return false;
  if(ask&&Notification.permission!=='granted'){const r=await Notification.requestPermission();if(r!=='granted'){toast('Avisos não autorizados. Libere nos ajustes do celular.');return false}}
  if(Notification.permission!=='granted')return false;let sub=await swReg.pushManager.getSubscription();
@@ -431,6 +437,7 @@ async function boot(){if(!sb){app.innerHTML='<div class="login"><div class="logo
  try{await load();await seed();await gerarFixos()}catch(e){console.error(e);app.innerHTML=`<div class="login"><div class="logo">LIFE HG</div><p class="neg">Não consegui carregar seus dados (${esc(e.message||e)}).</p><button class="btn pri" onclick="location.reload()">Tentar de novo</button></div>`;return}
  render();pushSetup(false).then(ok=>{if(!ok)setTimeout(askPush,2500)})}
 if('serviceWorker' in navigator&&!window.__lifeSb)navigator.serviceWorker.register('sw.js',{scope:'./'}).then(r=>{swReg=r}).catch(()=>{});
+setInterval(()=>{if(document.visibilityState==='visible'&&me&&!document.querySelector('.sheet'))load().then(render).catch(()=>{})},60000);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&me&&!document.querySelector('.sheet'))load().then(render).catch(()=>{})});
 boot();
 }
