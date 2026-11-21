@@ -59,6 +59,10 @@ table{width:100%;border-collapse:collapse;font-size:15px}th{text-align:left;font
 #ov.on{display:flex}.box{background:#fff;border-radius:14px;width:min(720px,100%);padding:18px}
 .box img.big{width:100%;border-radius:10px;max-height:70vh;object-fit:contain;background:#000}
 .login{max-width:420px;margin:6vh auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.kpi{background:var(--bg2);border-radius:12px;padding:10px 12px}.kpi b{display:block;font:700 22px/1.2 "Barlow Condensed",sans-serif;white-space:nowrap}
+.bars{display:grid;gap:6px}.bar{display:grid;grid-template-columns:64px minmax(0,1fr) 110px;gap:8px;align-items:center}.bar>div{display:grid;gap:2px}.bar i{display:block;height:9px;border-radius:5px;min-width:2px}.bar b{text-align:right;white-space:nowrap}
+.cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-top:8px}.carc{border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:3px;align-content:start}
+body.adm main{max-width:1240px}
 @media(max-width:560px){.grid{grid-template-columns:minmax(0,1fr)}h1{font-size:23px}}
 </style>
 </head>
@@ -532,7 +536,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   await this.load();this.render();const tel=String(c.tel||'').replace(/\D/g,'').replace(/^(?!55)/,'55');
   modal(`<h2>✅ Cadastro de ${esc(c.nome.split(' ')[0])} aprovado</h2><p>${P.length} envio(s) aprovado(s).</p>${c.tel?`<a class="btn ok" style="width:100%" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${c.nome.split(' ')[0]}! Conferimos seus documentos e as fotos do carro: está tudo certo, cadastro aprovado. ✅ UKA RENTALS`)}" target="_blank" rel="noopener">Avisar o cliente no WhatsApp</a>`:''}<button style="width:100%;margin-top:8px" data-close>Fechar</button>`)},
  async v_pend(){const P=this.ups.filter(u=>u.status==='Pendente');const sig=await signed(P.filter(u=>isImg(u.caminho)).map(u=>u.caminho));const RD=this.ready();
-  $('#pane').innerHTML=`${notifBanner('Receba aviso no celular, mesmo com o app fechado, quando um cliente enviar documento, foto ou pagamento.')}<p class="sub" style="margin:0 0 8px">Atualiza sozinho a cada 30 segundos.</p>${this.cardsDocs()}${this.kmAlerts()}${RD.map(r=>`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Cadastro completo para conferir</h2><p><b>${esc(r.c.nome)}</b>${r.car?' · '+esc(r.car.placa):''} enviou os documentos e as 10 fotos da vistoria. <b>${r.pend}</b> item(ns) esperando você.</p><div class="row"><button class="pri" data-ficha="${r.c.id}">Conferir fotos e documentos</button><button class="ok" data-okall="${r.c.id}">Aprovar cadastro</button></div></section>`).join('')}<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
+  $('#pane').innerHTML=`<p class="sub" style="margin:0 0 8px">Atualiza sozinho a cada 30 segundos.</p>${this.cardsDocs()}${this.kmAlerts()}${RD.map(r=>`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Cadastro completo para conferir</h2><p><b>${esc(r.c.nome)}</b>${r.car?' · '+esc(r.car.placa):''} enviou os documentos e as 10 fotos da vistoria. <b>${r.pend}</b> item(ns) esperando você.</p><div class="row"><button class="pri" data-ficha="${r.c.id}">Conferir fotos e documentos</button><button class="ok" data-okall="${r.c.id}">Aprovar cadastro</button></div></section>`).join('')}<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
  async v_cli(){$('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Clientes (${this.cls.length})</h2><button class="pri" data-newcli>+ Cliente</button></div>
   <div class="scroll"><table><thead><tr><th>Nome</th><th>E-mail de acesso</th><th>Telefone</th><th>Acesso</th><th></th></tr></thead><tbody>${this.cls.map(c=>`<tr><td><b>${esc(c.nome)}</b><div class="sub">${esc(c.cpf||'')}</div></td><td>${esc(c.email)}</td><td>${esc(c.tel||'')}</td><td>${c.user_id?'<span class="tag t-ok">Ativo</span>':'<span class="tag t-amb">Aguardando 1º acesso</span>'}</td><td class="row"><button class="sm pri" data-ficha="${c.id}">Ficha</button><button class="sm" data-editcli="${c.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>
   <p class="sub">Para o cliente entrar: cadastre o e-mail dele aqui, mande o link do app e peça para tocar em “Primeiro acesso” e criar a senha.</p></section>`},
@@ -591,6 +595,258 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   const{error}=await sb.from('uploads').update({status:ok?'Aprovado':'Recusado',motivo}).eq('id',id);if(error)return toast('Erro: '+error.message);
   if(ok&&(u.tipo==='odometro'||u.tipo==='vistoria')&&u.km&&u.car_id){const car=this.car(u.car_id);if(car&&(+u.km>(+car.km||0)))await sb.from('cars').update({km:u.km}).eq('id',u.car_id)}
   await this.load();toast(ok?'Aprovado.':'Recusado.');if($('#ov').classList.contains('on')&&$('#box h2')&&u.client_id)this.ficha(u.client_id);else this.render()}};
+/* =============================== GESTÃO (dono): painel, financeiro, multas, proprietária, empresa =============================== */
+const CATS=['Aluguel','Caução','Repasse de multa','Repasse ao proprietário','Comissão','Km excedente','Manutenção','Combustível','IPVA','Licenciamento','Seguro','Multa','Rastreador','Lavagem','Financiamento','Outros'];
+const REP='Repasse ao proprietário',MODO_REP='Eu recebo o aluguel e repasso ao dono',MODO_PAGA='O proprietário me paga';
+const isThird=c=>!!c&&String(c.propriedade||'').startsWith('De terceiro');
+const isRep=c=>isThird(c)&&c.comissao_modo===MODO_REP,donoPaga=c=>isThird(c)&&c.comissao_modo!==MODO_REP;
+const ownerName=c=>(c.dono_nome||'').trim()||'Proprietário sem nome';
+const carNome=c=>c?[c.marca,c.modelo].filter(Boolean).join(' ')||c.placa||'—':'—';
+const emOf=e=>(e.data_pag||e.venc||'').slice(0,7);
+const dd=s=>s?Math.round((new Date(String(s).slice(0,10)+'T12:00:00')-new Date(TODAY+'T12:00:00'))/864e5):null;
+const MES3=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+const mLabel=m=>{const[y,mm]=String(m).split('-');return MES3[+mm-1]+'/'+y};
+const addM=(m,n)=>{const[y,mm]=m.split('-').map(Number);const d=new Date(y,mm-1+n,1);return d.getFullYear()+'-'+pad(d.getMonth()+1)};
+const money=v=>v===null||v===undefined||v===''?'':(+v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const parseMoney=s=>{s=String(s||'').replace(/[^\d,.-]/g,'');if(!s)return null;if(s.includes(','))s=s.replace(/\./g,'').replace(',','.');const n=+s;return isNaN(n)?null:Math.round(n*100)/100};
+const waLink=t=>{let d=String(t||'').replace(/\D/g,'');if(!d)return'';if(d.length<=11)d='55'+d;return'https://wa.me/'+d};
+const sum=(A,f)=>A.reduce((s,x)=>s+(+f(x)||0),0);
+
+const G={
+ carMonth(c,m){let alug=0,n=0,desp=0,rep=0;
+  for(const e of Admin.ens){if(e.car_id!==c.id)continue;
+   if(e.categoria===REP){if((e.ref||emOf(e))===m&&e.pago)rep+=+e.valor||0;continue}
+   if(!e.pago||emOf(e)!==m)continue;
+   if(e.tipo==='Receita'&&e.categoria==='Aluguel'){alug+=+e.valor||0;n++}
+   else if(e.tipo==='Despesa'&&c.despesas_por!=='Pagas por mim')desp+=+e.valor||0}
+  const v=+c.comissao_valor||0,t=c.comissao_tipo||'% do aluguel recebido';
+  const com=t.startsWith('%')?alug*v/100:t.includes('cobrança')?Math.min(alug,n*v):(alug>0?Math.min(v,alug):0);
+  const dono=alug-com-desp;return{alug,n,com,desp,dono,rep,saldo:dono-rep}},
+ dueDay(c,m){const dia=Math.max(1,Math.min(31,Math.round(+c.dia_pagamento_dono)||26));const[y,mm]=m.split('-').map(Number);return m+'-'+pad(Math.min(dia,new Date(y,mm,0).getDate()))},
+ comPrevista(c,m){const v=+c.comissao_valor||0,t=c.comissao_tipo||'% do aluguel recebido';
+  const al=Admin.ens.filter(e=>e.car_id===c.id&&e.categoria==='Aluguel'&&emOf(e)===m);let x;
+  if(t==='Valor fixo por mês')x=v;else if(t.includes('cobrança'))x=v*(al.length||4);
+  else{const base=al.length?sum(al,e=>e.valor):(+c.valor_mensal||(+c.valor_semanal?c.valor_semanal*52/12:0));x=base*v/100}
+  return Math.round(x*100)/100},
+ comRecebida(c,m){return sum(Admin.ens.filter(e=>e.car_id===c.id&&e.categoria==='Comissão'&&e.tipo==='Receita'&&e.pago&&(e.ref||emOf(e))===m),e=>e.valor)},
+ comMonths(c){const start=/^\d{4}-\d{2}$/.test(c.comissao_desde||'')?c.comissao_desde:'2026-11',end=TODAY.slice(0,7),out=[];let m=start;for(let i=0;i<120&&m<=end;i++){out.push(m);m=addM(m,1)}return out},
+ comPendentes(c){return this.comMonths(c).map(m=>({m,due:this.dueDay(c,m),prev:this.comPrevista(c,m),rec:this.comRecebida(c,m)})).map(x=>({...x,falta:Math.round((x.prev-x.rec)*100)/100})).filter(x=>x.falta>0.009)},
+ monthSums(m){let r=0,d=0,bruto=0,com=0,dono=0;
+  for(const e of Admin.ens){if(!e.pago||emOf(e)!==m||e.categoria===REP)continue;const c=Admin.car(e.car_id),th=isThird(c);
+   if(e.tipo==='Receita'){bruto+=+e.valor||0;if(!(th&&e.categoria==='Aluguel'))r+=+e.valor||0}
+   else if(!(th&&c.despesas_por!=='Pagas por mim'))d+=+e.valor||0}
+  for(const c of Admin.cars)if(isRep(c)){const x=this.carMonth(c,m);r+=x.com;com+=x.com;dono+=x.saldo}
+  for(const c of Admin.cars)if(donoPaga(c))com+=this.comRecebida(c,m);
+  return{r,d,bruto,com,dono,lucro:r-d}},
+ carLucro(c,m){if(isThird(c)){const x=this.carMonth(c,m),cm=donoPaga(c)?this.comRecebida(c,m):x.com;
+   const dp=c.despesas_por==='Pagas por mim'?sum(Admin.ens.filter(e=>e.car_id===c.id&&e.pago&&e.tipo==='Despesa'&&e.categoria!==REP&&emOf(e)===m),e=>e.valor):0;return{g:cm,d:dp,l:cm-dp}}
+  const E=Admin.ens.filter(e=>e.car_id===c.id&&e.pago&&emOf(e)===m&&e.categoria!==REP);const g=sum(E.filter(e=>e.tipo==='Receita'),e=>e.valor),d=sum(E.filter(e=>e.tipo==='Despesa'),e=>e.valor);return{g,d,l:g-d}},
+ nextIpva(c){const p=Admin.ens.filter(e=>e.car_id===c.id&&e.categoria==='IPVA'&&!e.pago&&e.venc).sort((a,b)=>a.venc.localeCompare(b.venc))[0];return p?{venc:p.venc,valor:p.valor,parc:true}:{venc:c.ipva_venc,valor:c.ipva_valor}},
+ atrasos(){const out=[];
+  for(const k of Admin.ks){if(k.status!=='Ativo'||!k.valor||!k.inicio||k.inicio>TODAY)continue;
+   if(k.etapa&&k.etapa!=='confirmado')continue;
+   if(k.etapa&&!Admin.ups.some(u=>u.contract_id===k.id&&u.tipo==='contrato_assinado'&&u.status!=='Recusado'))continue;
+   const cy=cicloSemana(k);if(!cy)continue;const ini=diaAntes(cy),p=Admin.cl(k.client_id),c=Admin.car(k.car_id);
+   const U=Admin.ups.filter(u=>u.client_id===k.client_id&&u.status!=='Recusado'&&((u.data||'')>=ini||(u.criado_em||'').slice(0,10)>=ini));
+   const pag=U.some(u=>u.tipo==='pagamento')||Admin.ens.some(e=>e.contract_id===k.id&&e.categoria==='Aluguel'&&e.pago&&(e.data_pag||'')>=ini),odo=U.some(u=>u.tipo==='odometro');
+   const at=pag?0:-dd(cy),v=+k.valor;
+   if(!pag)out.push({k,p,c,cy,at,v,total:at>0?v+v*0.1+v*0.01/30*at:v,falta:'pagamento'});else if(!odo)out.push({k,p,c,cy,at:0,v,falta:'odometro'})}
+  return out.sort((a,b)=>b.at-a.at)},
+ alertas(){const A=[],add=(d,lim,txt,sub,go)=>{if(d===null||d>lim)return;A.push({d,txt,sub,go})};
+  for(const c of Admin.cars){if(c.status==='Vendido')continue;const n=c.placa;
+   {const ip=this.nextIpva(c);add(dd(ip.venc),30,'IPVA '+n,'Vence '+fd(ip.venc)+(ip.valor?' · '+brl(ip.valor):'')+(ip.parc?' (parcela)':''),'car')}
+   add(dd(c.lic_venc),30,'Licenciamento '+n,'Vence '+fd(c.lic_venc),'car');
+   add(dd(c.seguro_venc),30,'Seguro '+n,(c.seguradora?c.seguradora+' · ':'')+'vence '+fd(c.seguro_venc),'car');
+   add(dd(c.revisao_data),15,'Revisão '+n,'Agendada para '+fd(c.revisao_data),'car');
+   for(const[k,l]of[['revisao_km','Revisão'],['oleo_km','Troca de óleo'],['pneus_km','Troca de pneus']])if(+c[k]&&+c.km){const f=+c[k]-+c.km;if(f<=1000)A.push({d:f<0?-1:0,txt:l+' '+n,sub:f<0?`Passou ${Math.abs(f).toLocaleString('pt-BR')} km (atual ${kmf(c.km)})`:`Faltam ${f.toLocaleString('pt-BR')} km`,go:'car'})}}
+  for(const p of Admin.cls)add(dd(p.cnh_venc),30,'CNH de '+p.nome,'Vence '+fd(p.cnh_venc),'cli');
+  for(const k of Admin.ks){if(k.status!=='Ativo')continue;const c=Admin.car(k.car_id),p=Admin.cl(k.client_id);add(dd(k.fim),7,'Fim de contrato '+(c?c.placa:''),(p?p.nome+' · ':'')+'termina '+fd(k.fim),'ctr')}
+  for(const e of Admin.ens){if(e.pago||!e.venc||(e.categoria==='IPVA'&&e.car_id))continue;
+   if(e.tipo==='Receita')add(dd(e.venc),2,'A receber: '+brl(e.valor),e.descricao||e.categoria,'fin');else add(dd(e.venc),7,'A pagar: '+brl(e.valor),e.descricao||e.categoria,'fin')}
+  for(const f of Admin.fns){if(f.status==='Paga'||f.status==='Cobrada do cliente')continue;const c=Admin.car(f.car_id);
+   if(f.status==='Pendente')add(dd(f.prazo_indic),10,'Indicar condutor '+(c?c.placa:''),'Prazo '+fd(f.prazo_indic)+' · '+(f.descricao||'multa'),'mul');
+   add(dd(f.venc),15,'Multa '+(c?c.placa:'')+' '+brl(f.valor),'Vence '+fd(f.venc),'mul')}
+  for(const c of Admin.cars)if(donoPaga(c)&&c.status!=='Vendido')for(const x of this.comPendentes(c))add(dd(x.due),3,`Comissão de ${ownerName(c).split(' ')[0]} · ${c.placa}`,`${brl(x.falta)} de ${mLabel(x.m)} · dia ${fd(x.due)}`,'don');
+  const cur=TODAY.slice(0,7),own={};
+  for(const c of Admin.cars)if(isRep(c)){const ms=new Set();for(const e of Admin.ens)if(e.car_id===c.id){const m=e.categoria===REP?(e.ref||emOf(e)):emOf(e);if(m&&m<cur)ms.add(m)}
+   for(const m of ms){const s=this.carMonth(c,m).saldo;if(s>0.009)own[ownerName(c)]=(own[ownerName(c)]||0)+s}}
+  for(const[n,v]of Object.entries(own))A.push({d:0,txt:'Repasse pendente: '+n,sub:brl(v)+' de meses anteriores',go:'don'});
+  return A.sort((a,b)=>a.d-b.d)},
+ dTag(d){return d===null?'':d<0?`<span class="tag t-red">${-d}d atrasado</span>`:d===0?'<span class="tag t-amb">hoje</span>':`<span class="tag ${d<=7?'t-amb':'t-blue'}">em ${d}d</span>`},
+
+ /* formulário com seções, R$, sim/não e arquivo */
+ form(title,fields,rec,onSave,opts={}){const val=(k,t)=>{const v=rec[k];return t==='money'?money(v):t==='bool'?(v?'true':'false'):(v??'')};
+  const F=fields.map(([k,l,t='text',o={}])=>{if(k==='-')return`<h3 class="full" style="margin:10px 0 0;color:var(--blue)">${esc(l)}</h3>`;const cls=o.full||t==='area'?'full':'',v=val(k,t),req=o.req?'required':'';
+   if(t==='select'||t==='bool'){const op=t==='bool'?[['false','Não'],['true','Sim']]:(typeof o.opts==='function'?o.opts():o.opts).map(x=>Array.isArray(x)?x:[x,x||'—']);return`<label class="${cls}">${esc(l)}<select name="${k}" ${req}>${op.map(([a,b])=>`<option value="${esc(a)}" ${String(v)===String(a)?'selected':''}>${esc(b)}</option>`).join('')}</select></label>`}
+   if(t==='area')return`<label class="full">${esc(l)}<textarea name="${k}" lang="pt-BR" spellcheck="true" autocorrect="on" autocapitalize="sentences">${esc(v)}</textarea></label>`;
+   if(t==='file')return`<label class="full">${esc(l)}${rec[k]?` <button type="button" class="sm" data-open="${esc(rec[k])}">Ver arquivo atual</button>`:''}<input type="file" name="${k}" accept="image/*,application/pdf"></label>`;
+   if(t==='money')return`<label class="${cls}">${esc(l)}<input name="${k}" inputmode="decimal" placeholder="0,00" value="${esc(v)}" ${req} data-money></label>`;
+   const code=/placa|doc|cpf|tel|pix|renavam|chassi|codigo|_id|email/.test(k);
+   return`<label class="${cls}">${esc(l)}<input name="${k}" type="${t}" ${t==='number'?'step="any" inputmode="decimal"':''} value="${esc(v)}" ${req} ${t==='text'&&!code?'lang="pt-BR" spellcheck="true" autocorrect="on" autocapitalize="sentences"':'spellcheck="false" autocorrect="off" autocapitalize="off"'}></label>`}).join('');
+  modal(`<form id="gf"><div class="row" style="justify-content:space-between"><h2>${esc(title)}</h2><button type="button" class="sm" data-close>Fechar</button></div>${opts.top||''}<div class="grid">${F}</div><div class="row" style="justify-content:space-between;margin-top:14px"><div>${opts.del?'<button type="button" class="dng" data-gdel>Excluir</button>':''}</div><div class="row"><button type="button" data-close>Cancelar</button><button class="pri">Salvar</button></div></div></form>`);
+  const f=$('#gf');f.querySelectorAll('[data-money]').forEach(i=>i.addEventListener('blur',()=>{const n=parseMoney(i.value);i.value=n===null?'':money(n)}));
+  if(opts.del)f.querySelector('[data-gdel]').onclick=()=>G.confirm(opts.delMsg||'Excluir este registro?',async()=>{await opts.del();await Admin.load();Admin.render();toast('Excluído.')});
+  if(opts.after)opts.after(f);
+  f.onsubmit=async e=>{e.preventDefault();const o={};let file=null;
+   for(const[k,,t='text']of fields){if(k==='-')continue;const el=f.elements[k];if(!el)continue;if(t==='file'){file=el.files[0]||null;continue}
+    const v=String(el.value).trim();o[k]=t==='money'?parseMoney(v):t==='bool'?v==='true':v===''?null:t==='number'?+v:v}
+   const bt=f.querySelector('.pri');bt.disabled=true;try{await onSave(o,file);closeModal();await Admin.load();Admin.render();toast('Salvo.')}catch(x){toast('Erro: '+(x.message||x))}finally{bt.disabled=false}}},
+ confirm(msg,fn){modal(`<h2>Confirmar</h2><p>${esc(msg)}</p><div class="row" style="justify-content:flex-end;margin-top:12px"><button data-close>Cancelar</button><button class="pri" style="background:var(--red);border-color:var(--red)" id="gok">Sim, excluir</button></div>`);
+  $('#gok').onclick=async()=>{$('#gok').disabled=true;try{await fn();closeModal()}catch(x){toast('Erro: '+(x.message||x))}}},
+ async put(folder,file){const f=await compress(file);const ext=(f.name.split('.').pop()||'bin').toLowerCase().replace(/[^a-z0-9]/g,'');const path=`empresa/${folder}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+  const{error}=await sb.storage.from('arquivos').upload(path,f,{contentType:f.type||undefined});if(error)throw error;return path},
+ async save(table,o,id){const q=id?sb.from(table).update(o).eq('id',id):sb.from(table).insert(o);const{error}=await q;if(error)throw error},
+ async del(table,id){const{error}=await sb.from(table).delete().eq('id',id);if(error)throw error},
+
+ /* ---------- lançamentos ---------- */
+ editEntry(e={tipo:'Despesa',categoria:'Manutenção',venc:TODAY,pago:false}){
+  const carOpts=()=>[['','— nenhum —'],...Admin.cars.map(c=>[c.id,c.placa+' · '+carNome(c)])],cliOpts=()=>[['','— nenhum —'],...Admin.cls.map(c=>[c.id,c.nome])];
+  this.form(e.id?'Editar lançamento':(e.tipo==='Receita'?'Nova receita':'Nova despesa'),[['tipo','Tipo','select',{opts:['Receita','Despesa']}],['categoria','Categoria','select',{opts:CATS}],['descricao','Descrição','text',{full:1}],['valor','Valor (R$)','money',{req:1}],['venc','Vencimento / data','date'],['car_id','Carro','select',{opts:carOpts}],['client_id','Cliente','select',{opts:cliOpts}],['pago','Já foi pago / recebido?','bool'],['data_pag','Data do pagamento','date'],['km','Km (manutenção)','number'],['ref','Mês de referência (comissão / repasse)','month'],['arquivo','Nota ou comprovante (foto ou PDF)','file']],e,
+   async(o,file)=>{if(file)o.arquivo=await this.put('notas',file);if(o.pago&&!o.data_pag)o.data_pag=o.venc||TODAY;if(!o.pago)o.data_pag=null;
+    await this.save('entries',o,e.id);
+    if(o.categoria==='Manutenção'&&+o.km&&o.car_id){const c=Admin.car(o.car_id);if(c&&+o.km>(+c.km||0))await sb.from('cars').update({km:+o.km}).eq('id',c.id)}},
+   {del:e.id&&!e.upload_id?()=>this.del('entries',e.id):null,delMsg:'Excluir este lançamento do financeiro?',top:e.upload_id?'<p class="note n-blue">Lançado automaticamente pelo comprovante que o cliente enviou no app.</p>':''})},
+ async pagar(id){const e=Admin.ens.find(x=>x.id===id);if(!e)return;await this.save('entries',{pago:true,data_pag:TODAY},id);await Admin.load();Admin.render();toast((e.tipo==='Receita'?'Recebimento':'Pagamento')+' registrado.')},
+
+ /* ---------- multas ---------- */
+ editFine(f={status:'Pendente'}){const carOpts=()=>[['','— escolha —'],...Admin.cars.map(c=>[c.id,c.placa+' · '+carNome(c)])],cliOpts=()=>[['','— ninguém ainda —'],...Admin.cls.map(c=>[c.id,c.nome])];
+  this.form(f.id?'Editar multa':'Nova multa',[['car_id','Carro','select',{opts:carOpts,req:1}],['data_infr','Data da infração','date',{req:1}],['client_id','Condutor responsável','select',{opts:cliOpts}],['auto','Nº do auto de infração'],['descricao','Infração','text',{full:1}],['valor','Valor (R$)','money'],['pontos','Pontos','number'],['prazo_indic','Prazo para indicar condutor','date'],['venc','Vencimento do boleto','date'],['status','Situação','select',{opts:['Pendente','Condutor indicado','Recorrida','Paga','Cobrada do cliente']}],['arquivo','Notificação (foto ou PDF)','file'],['obs','Observações','area']],f,
+   async(o,file)=>{if(file)o.arquivo=await this.put('multas',file);
+    if(!o.client_id&&o.car_id&&o.data_infr){const k=Admin.ks.find(k=>k.car_id===o.car_id&&k.inicio&&k.inicio<=o.data_infr&&(!k.fim||k.fim>=o.data_infr));if(k)o.client_id=k.client_id}
+    await this.save('fines',o,f.id)},{del:f.id?()=>this.del('fines',f.id):null,delMsg:'Excluir esta multa?',top:f.id?'':'<p class="sub">Se não escolher o condutor, o app procura quem estava com o carro na data da infração.</p>'})},
+ async cobrarMulta(id){const f=Admin.fns.find(x=>x.id===id);if(!f)return;const c=Admin.car(f.car_id),p=Admin.cl(f.client_id);if(!p)return toast('Escolha o condutor responsável na multa primeiro.');
+  const d=new Date(TODAY+'T12:00:00');d.setDate(d.getDate()+7);
+  await this.save('entries',{tipo:'Receita',categoria:'Repasse de multa',descricao:`Multa ${c?c.placa:''} — ${p.nome} (${f.descricao||f.auto||fd(f.data_infr)})`,valor:+f.valor||0,venc:iso(d),pago:false,car_id:f.car_id,client_id:f.client_id});
+  await this.save('fines',{status:'Cobrada do cliente'},id);await Admin.load();Admin.render();toast('Cobrança lançada no financeiro (vence em 7 dias).')},
+ async pagarMulta(id){const f=Admin.fns.find(x=>x.id===id);if(!f)return;const c=Admin.car(f.car_id);
+  await this.save('entries',{tipo:'Despesa',categoria:'Multa',descricao:`Multa ${c?c.placa:''} (${f.descricao||f.auto||fd(f.data_infr)})`,valor:+f.valor||0,venc:TODAY,pago:true,data_pag:TODAY,car_id:f.car_id,client_id:f.client_id});
+  await this.save('fines',{status:'Paga'},id);await Admin.load();Admin.render();toast('Multa marcada como paga e lançada nas despesas.')},
+
+ /* ---------- carros ---------- */
+ editCar(c={status:'Disponível',periodo_padrao:'Semanal',propriedade:'Meu',despesas_por:'Descontadas do proprietário',comissao_modo:MODO_PAGA,comissao_tipo:'Valor fixo por mês',dia_pagamento_dono:26}){
+  this.form(c.id?'Editar carro '+c.placa:'Novo carro',[['placa','Placa','text',{req:1}],['marca','Marca'],['modelo','Modelo'],['ano','Ano','number'],['cor','Cor'],['km','Km atual','number'],['renavam','Renavam'],['chassi','Chassi'],['combustivel','Combustível'],['exercicio','Último licenciamento pago (ano)','number'],['prop_doc','Proprietário no documento','text',{full:1}],
+   ['status','Situação (quando não alugado)','select',{opts:['Disponível','Manutenção','Parado','Vendido']}],['periodo_padrao','Cobrança do aluguel','select',{opts:['Semanal','Mensal','Quinzenal','Diária']}],['valor_semanal','Valor semanal (R$)','money'],['valor_mensal','Valor mensal (R$)','money'],['valor_diaria','Valor diária (R$)','money'],
+   ['-','Compra e Tabela FIPE'],['propriedade','Este carro é meu?','select',{opts:[['Meu','Sim, o carro é meu'],['De terceiro','Não, é de terceiro (eu administro)']],full:1}],['valor_compra','Valor que paguei (R$)','money'],['data_compra','Data da compra','date'],['valor_fipe','Valor na FIPE (R$) — atualiza sozinho','money'],['fipe_ref','Mês de referência da FIPE'],['fipe_codigo','Código FIPE'],['fipe_modelo','Modelo na FIPE','text',{full:1}],
+   ['-','Proprietário e minha comissão (carro de terceiro)'],['dono_nome','Nome do proprietário'],['dono_doc','CPF do proprietário'],['dono_tel','Telefone do proprietário'],['dono_pix','Pix do proprietário'],['comissao_tipo','Minha comissão','select',{opts:['% do aluguel recebido','Valor fixo por cobrança recebida','Valor fixo por mês']}],['comissao_valor','Comissão (% ou R$)','money'],['comissao_modo','Como recebo a comissão','select',{opts:[[MODO_PAGA,'O proprietário me paga todo mês'],[MODO_REP,MODO_REP]]}],['dia_pagamento_dono','Dia do mês em que o proprietário me paga','number'],['comissao_desde','Cobrar comissão a partir de (mês)','month'],['despesas_por','Despesas deste carro','select',{opts:['Descontadas do proprietário','Pagas por mim']}],
+   ['-','Documentos e vencimentos'],['ipva_venc','Vencimento do IPVA','date'],['ipva_valor','Valor do IPVA (R$)','money'],['lic_venc','Vencimento do licenciamento','date'],['seguro_venc','Vencimento do seguro','date'],['seguradora','Seguradora / apólice'],['seguro_valor','Valor do seguro (R$)','money'],
+   ['-','Manutenção'],['revisao_data','Próxima revisão (data)','date'],['revisao_km','Próxima revisão (km)','number'],['oleo_km','Próxima troca de óleo (km)','number'],['pneus_km','Próxima troca de pneus (km)','number'],['rastreador','Rastreador / bloqueador'],['obs','Observações (avarias, chaves, acessórios)','area']],c,
+   async o=>{o.placa=String(o.placa||'').toUpperCase().replace(/[^A-Z0-9]/g,'');await this.save('cars',o,c.id)},
+   {del:c.id?()=>this.del('cars',c.id):null,delMsg:`Excluir o carro ${c.placa||''}? Os lançamentos e contratos ficam guardados, só sem o carro.`})},
+ gastos(id){const c=Admin.car(id);if(!c)return;const E=Admin.ens.filter(e=>e.car_id===id).sort((a,b)=>(b.data_pag||b.venc||'').localeCompare(a.data_pag||a.venc||''));
+  const r=sum(E.filter(e=>e.pago&&e.tipo==='Receita'),e=>e.valor),d=sum(E.filter(e=>e.pago&&e.tipo==='Despesa'),e=>e.valor);
+  modal(`<div class="row" style="justify-content:space-between"><h2>${esc(c.placa)} · ${esc(carNome(c))}</h2><button class="sm" data-close>Fechar</button></div>
+  <p>Recebido: <b style="color:var(--grn)">${brl(r)}</b> · Gasto: <b style="color:var(--red)">${brl(d)}</b></p><div class="row"><button class="pri sm" data-gnew="Despesa" data-gcar="${id}">+ Gasto</button><button class="sm" data-gnew="Receita" data-gcar="${id}">+ Receita</button></div>
+  ${E.length?`<ul class="list">${E.map(e=>`<li><div><b>${esc(e.categoria)}</b> · ${esc(e.descricao||'')}<div class="sub">${fd(e.data_pag||e.venc)} · ${e.pago?'pago':'em aberto'}</div></div><div class="row"><b style="color:${e.tipo==='Receita'?'var(--grn)':'var(--red)'}">${e.tipo==='Receita'?'+':'−'} ${brl(e.valor)}</b><button class="sm" data-gent="${e.id}">Abrir</button></div></li>`).join('')}</ul>`:'<p class="sub">Nenhum lançamento deste carro ainda.</p>'}`)},
+ docsCar(id){const c=Admin.car(id);if(!c)return;const D=Array.isArray(c.docs)?c.docs:[];
+  modal(`<div class="row" style="justify-content:space-between"><h2>Documentos · ${esc(c.placa)}</h2><button class="sm" data-close>Fechar</button></div>
+  <p class="sub">CRLV, IPVA, apólice do seguro, notas… ficam guardados aqui.</p>
+  ${D.length?`<ul class="list">${D.map((x,i)=>`<li><div><b>${esc(x.tipo||'Documento')}</b><div class="sub">${esc(x.nome||'')} · ${fd(x.data)}</div></div><div class="row"><button class="sm" data-open="${esc(x.caminho)}">Ver</button><button class="sm dng" data-gdocdel="${id}|${i}">Excluir</button></div></li>`).join('')}</ul>`:'<p class="sub">Nenhum documento ainda.</p>'}
+  <div class="grid" style="margin-top:10px"><label>Tipo<select id="gdt"><option>CRLV</option><option>IPVA</option><option>Seguro</option><option>Nota fiscal</option><option>Laudo / vistoria</option><option>Outro</option></select></label>
+  <label class="btn pri" style="position:relative;align-self:end">Anexar arquivo<input type="file" accept="image/*,application/pdf" data-gdocup="${id}" style="position:absolute;opacity:0;width:1px;height:1px"></label></div>`)},
+ async docUp(id,file){const c=Admin.car(id);if(!c)return;toast('Enviando…');try{const p=await this.put('carros/'+c.placa,file);const D=[...(Array.isArray(c.docs)?c.docs:[]),{tipo:($('#gdt')||{}).value||'Documento',nome:file.name,caminho:p,data:TODAY}];
+  await this.save('cars',{docs:D},id);await Admin.load();toast('Documento guardado.');this.docsCar(id)}catch(x){toast('Erro: '+(x.message||x))}},
+ docDel(id,i){const c=Admin.car(id);if(!c)return;const D=[...(c.docs||[])];const x=D[i];this.confirm(`Excluir o documento "${x.tipo||''} ${x.nome||''}"?`,async()=>{D.splice(i,1);await this.save('cars',{docs:D},id);await Admin.load();this.docsCar(id)})},
+ kmCar(id){const c=Admin.car(id);if(!c)return;const L=Admin.ups.filter(u=>u.car_id===id&&u.km&&u.status!=='Recusado').sort((a,b)=>(b.data||b.criado_em).localeCompare(a.data||a.criado_em));
+  const k=Admin.ks.find(x=>x.car_id===id&&x.status==='Ativo'),KI=k&&kmInfo(k,Admin.ups.filter(u=>u.client_id===k.client_id),c);
+  modal(`<div class="row" style="justify-content:space-between"><h2>Km · ${esc(c.placa)}</h2><button class="sm" data-close>Fechar</button></div>
+  <p>Km atual: <b>${kmf(c.km)}</b>${KI&&KI.ultimo?` · neste mês do contrato: <b>${kmf(KI.rodMes)}</b> de ${kmf(KI.lim)}${KI.exc>0?` · <b style="color:var(--red)">${kmf(KI.exc)} acima = ${brl(KI.exc*KI.rate)}</b>`:''}`:''}</p>
+  ${KI&&KI.exc>0?`<button class="sm pri" data-gkmexc="${k.id}">Lançar cobrança do km excedente (${brl(KI.exc*KI.rate)})</button>`:''}
+  <h3>Leituras do odômetro</h3>${L.length?`<ul class="list">${L.map(u=>`<li><div><b>${kmf(u.km)}</b><div class="sub">${fd(u.data||u.criado_em)} · ${esc(TIPOS[u.tipo]||u.tipo)} · ${esc((Admin.cl(u.client_id)||{}).nome||'')}</div></div><div class="row">${stTag(u.status)}<button class="sm" data-open="${esc(u.caminho)}">Foto</button></div></li>`).join('')}</ul>`:'<p class="sub">Nenhuma foto de odômetro ainda.</p>'}`)},
+ async kmExc(kid){const k=Admin.ks.find(x=>x.id===kid);if(!k)return;const c=Admin.car(k.car_id),p=Admin.cl(k.client_id),KI=kmInfo(k,Admin.ups.filter(u=>u.client_id===k.client_id),c);if(!KI||KI.exc<=0)return;
+  await this.save('entries',{tipo:'Receita',categoria:'Km excedente',descricao:`Km excedente ${c.placa} — ${p?p.nome:''} (${KI.exc.toLocaleString('pt-BR')} km no mês desde ${fd(KI.mesIni)})`,valor:Math.round(KI.exc*KI.rate*100)/100,venc:TODAY,pago:false,car_id:c.id,client_id:k.client_id,contract_id:k.id});
+  closeModal();await Admin.load();Admin.render();toast('Cobrança do km excedente lançada no financeiro.')},
+
+ /* ---------- proprietária ---------- */
+ async recebiCom(carId,m){const c=Admin.car(carId);if(!c)return;const x=this.comPendentes(c).find(y=>y.m===m);if(!x)return;
+  await this.save('entries',{tipo:'Receita',categoria:'Comissão',descricao:`Comissão ${c.placa} — ${ownerName(c)} (${mLabel(m)})`,valor:x.falta,venc:x.due,pago:true,data_pag:TODAY,ref:m,car_id:c.id});await Admin.load();Admin.render();toast('Comissão registrada.')},
+ async repassei(carId,m){const c=Admin.car(carId);if(!c)return;const s=this.carMonth(c,m).saldo;if(s<=0)return;
+  await this.save('entries',{tipo:'Despesa',categoria:REP,descricao:`Repasse ${c.placa} — ${ownerName(c)} (${mLabel(m)})`,valor:Math.round(s*100)/100,venc:TODAY,pago:true,data_pag:TODAY,ref:m,car_id:c.id});await Admin.load();Admin.render();toast('Repasse registrado.')},
+
+ /* ---------- empresa ---------- */
+ editEmp(){const d=Admin.emp||{};this.form('Dados da empresa',[['nome','Nome do locador / empresa','text',{req:1}],['doc','CPF ou CNPJ'],['tel','Telefone'],['email','E-mail'],['endereco','Endereço','text',{full:1}],['cidade','Cidade / UF (foro do contrato)'],['pix','Chave Pix'],['multaAtraso','Multa por atraso (%)','number'],['-','Controle de km'],['limiteKmMes','Limite de km por mês','number'],['kmExcedente','Valor por km excedente (R$)','money']],d,
+  async o=>{const{error}=await sb.from('empresa').upsert({id:1,dados:{...d,...o},atualizado:new Date().toISOString()});if(error)throw error})}
+};
+
+Object.assign(Admin,{ens:[],fns:[],emp:{},mes:TODAY.slice(0,7),fmes:TODAY.slice(0,7),ffil:'todos',cfil:'todos',
+ async loadG(){const r=await Promise.all([sb.from('entries').select('*').order('venc',{ascending:false}).limit(3000),sb.from('fines').select('*').order('data_infr',{ascending:false}),sb.from('empresa').select('dados').eq('id',1).maybeSingle()]);
+  if(r[0].error||r[1].error)return;this.ens=r[0].data||[];this.fns=r[1].data||[];this.emp=(r[2].data&&r[2].data.dados)||{}},
+ kpi(l,v,cor,sub){return`<div class="kpi"><div class="sub">${l}</div><b style="${cor?'color:'+cor:''}">${v}</b>${sub?`<div class="sub">${sub}</div>`:''}</div>`},
+ async v_painel(){const m=this.mes,S=G.monthSums(m),A=G.alertas(),AT=G.atrasos(),P=this.ups.filter(u=>u.status==='Pendente').length;
+  const comAb=sum(this.cars.filter(donoPaga),c=>sum(G.comPendentes(c).filter(x=>x.due<TODAY),x=>x.falta));
+  const meses=[...Array(6)].map((_,i)=>addM(TODAY.slice(0,7),i-5)).map(mm=>({mm,...G.monthSums(mm)})),mx=Math.max(1,...meses.map(x=>Math.max(x.r,x.d)));
+  const ativos=this.ks.filter(k=>k.status==='Ativo').length,frota=this.cars.filter(c=>c.status!=='Vendido');
+  $('#pane').innerHTML=`${P||this.ready().length?`<div class="note n-blue row" style="justify-content:space-between"><span>🔔 <b>${P}</b> envio(s) de clientes para conferir.</span><button class="sm pri" data-tab="pend">Conferir agora</button></div>`:''}
+  <section class="card"><div class="row" style="justify-content:space-between"><h2>Resumo de ${mLabel(m)}</h2><label class="row" style="gap:6px">Mês<input type="month" value="${m}" data-gmes style="width:auto;min-height:38px"></label></div>
+  <div class="kpis">${this.kpi('Entrou no caixa',brl(S.bruto),'','todos os recebimentos')}${this.kpi('Meu ganho',brl(S.r),'var(--grn)','aluguéis meus + comissões')}${this.kpi('Minhas despesas',brl(S.d),'var(--red)')}${this.kpi('Meu lucro',brl(S.lucro),S.lucro>=0?'var(--blue)':'var(--red)')}${this.kpi('Comissões atrasadas',brl(comAb),comAb>0?'var(--red)':'')}${this.kpi('Frota',frota.length+' carros',''
+   ,ativos+' alugado(s)')}</div></section>
+  <section class="card"><h2>💰 Aluguéis da semana</h2>${AT.length?`<ul class="list">${AT.map(x=>`<li><div><b>${esc(x.p?x.p.nome:'—')}</b> · ${esc(x.c?x.c.placa:'')}<div class="sub">${x.falta==='odometro'?'Pagou, mas falta a foto do odômetro':`Aluguel de ${fd(x.cy)} · ${brl(x.v)}`}</div></div><div class="row">${x.falta==='odometro'?'<span class="tag t-amb">falta odômetro</span>':x.at>0?`<span class="tag t-red">${x.at}d atrasado · ${brl(x.total)}</span>`:'<span class="tag t-amb">vence hoje</span>'}${x.p&&x.p.tel?`<a class="btn sm" href="${waLink(x.p.tel)}?text=${encodeURIComponent(`Olá ${x.p.nome.split(' ')[0]}! Aqui é da UKA RENTALS. `+(x.falta==='odometro'?'Falta enviar no app a foto do odômetro desta semana. Obrigado!':`O aluguel de ${fd(x.cy)} (${brl(x.v)}) ainda não apareceu aqui.${x.at>0?` Com a multa e os juros do contrato, hoje está em ${brl(x.total)}.`:''} Pode pagar pelo Pix e enviar o comprovante no app? Obrigado!`))}" target="_blank" rel="noopener">WhatsApp</a>`:''}</div></li>`).join('')}</ul>`:'<p class="sub">Todos em dia nesta semana. 👍</p>'}</section>
+  <section class="card"><h2>⏰ Alertas (${A.length})</h2>${A.length?`<ul class="list">${A.map(a=>`<li><div><b>${esc(a.txt)}</b><div class="sub">${esc(a.sub||'')}</div></div><div class="row">${G.dTag(a.d)}<button class="sm" data-tab="${a.go}">Abrir</button></div></li>`).join('')}</ul>`:'<p class="sub">Nada vencendo nos próximos dias.</p>'}</section>
+  <section class="card"><h2>Últimos 6 meses</h2><div class="bars">${meses.map(x=>`<div class="bar"><span class="sub">${mLabel(x.mm)}</span><div><i style="width:${x.r/mx*100}%;background:var(--grn)"></i><i style="width:${x.d/mx*100}%;background:var(--red)"></i></div><b style="color:${x.lucro>=0?'var(--blue)':'var(--red)'}">${brl(x.lucro)}</b></div>`).join('')}</div><p class="sub">Verde = meu ganho · vermelho = despesas · número = lucro do mês.</p></section>
+  <section class="card"><h2>Lucro por carro · ${mLabel(m)}</h2><div class="scroll"><table><thead><tr><th>Carro</th><th>Ano</th><th>Placa</th><th style="text-align:right">Ganho</th><th style="text-align:right">Despesas</th><th style="text-align:right">Lucro</th></tr></thead><tbody>${frota.map(c=>{const x=G.carLucro(c,m);return`<tr><td>${esc(carNome(c))}${isThird(c)?' <span class="tag t-mut">terceiro</span>':''}</td><td>${esc(c.ano||'')}</td><td><b>${esc(c.placa)}</b></td><td style="text-align:right">${brl(x.g)}</td><td style="text-align:right">${brl(x.d)}</td><td style="text-align:right"><b style="color:${x.l>=0?'var(--grn)':'var(--red)'}">${brl(x.l)}</b></td></tr>`}).join('')}</tbody></table></div><p class="sub">Carros de terceiros: o ganho é só a comissão.</p></section>
+  <section class="card"><h2>Meus carros na FIPE</h2><ul class="list">${frota.filter(c=>+c.valor_fipe).map(c=>{const pg=+c.valor_compra,f=+c.valor_fipe,dv=pg?(f-pg)/pg*100:null;return`<li><div><b>${esc(carNome(c))} ${esc(c.ano||'')}</b> · ${esc(c.placa)}<div class="sub">${esc(c.fipe_ref||'')}${isThird(c)?' · de terceiro':''}</div></div><div style="text-align:right"><b>${brl(f)}</b>${pg&&!isThird(c)?`<div class="sub">paguei ${brl(pg)} <b style="color:${dv>=0?'var(--grn)':'var(--red)'}">${dv>=0?'+':''}${dv.toFixed(1).replace('.',',')}%</b></div>`:''}</div></li>`}).join('')||'<li class="sub">Nenhum carro com FIPE.</li>'}</ul></section>`},
+ async v_fin(){const m=this.fmes,fl=this.ffil;let E=this.ens.filter(e=>fl==='aberto'?!e.pago:(e.data_pag||e.venc||'').slice(0,7)===m);
+  if(fl==='Receita'||fl==='Despesa')E=E.filter(e=>e.tipo===fl);E.sort((a,b)=>(a.pago-b.pago)||(a.venc||'').localeCompare(b.venc||''));
+  const rec=sum(E.filter(e=>e.tipo==='Receita'),e=>e.valor),des=sum(E.filter(e=>e.tipo==='Despesa'),e=>e.valor);
+  $('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Financeiro</h2><div class="row"><button class="sm" data-gnew="Receita">+ Receita</button><button class="pri" data-gnew="Despesa">+ Despesa</button></div></div>
+  <div class="row" style="margin:8px 0">${fl!=='aberto'?`<input type="month" value="${m}" data-gfmes style="width:auto;min-height:38px">`:''}${[['todos','Tudo'],['Receita','Receitas'],['Despesa','Despesas'],['aberto','Em aberto (todos os meses)']].map(([k,l])=>`<button class="sm ${fl===k?'pri':''}" data-gffil="${k}">${l}</button>`).join('')}</div>
+  <p>Receitas: <b style="color:var(--grn)">${brl(rec)}</b> · Despesas: <b style="color:var(--red)">${brl(des)}</b> · Saldo: <b>${brl(rec-des)}</b></p>
+  ${E.length?`<div class="scroll"><table class="stk"><thead><tr><th>Data</th><th>Descrição</th><th style="text-align:right">Valor</th><th>Situação</th><th></th></tr></thead><tbody>${E.map(e=>{const c=this.car(e.car_id),d=dd(e.venc);return`<tr><td>${fd(e.data_pag||e.venc)}</td><td><b>${esc(e.categoria)}</b>${c?' · '+esc(c.placa):''}<div class="sub">${esc(e.descricao||'')}</div></td><td style="text-align:right;white-space:nowrap"><b style="color:${e.tipo==='Receita'?'var(--grn)':'var(--red)'}">${e.tipo==='Receita'?'+':'−'} ${brl(e.valor)}</b></td><td>${e.pago?`<span class="tag t-ok">${e.tipo==='Receita'?'recebido':'pago'}</span>`:d!==null&&d<0?'<span class="tag t-red">atrasado</span>':'<span class="tag t-amb">em aberto</span>'}</td><td class="row" style="flex-wrap:nowrap">${e.pago?'':`<button class="sm ok" data-gpay="${e.id}">${e.tipo==='Receita'?'Recebi':'Paguei'}</button>`}${e.arquivo?`<button class="sm" data-open="${esc(e.arquivo)}">Nota</button>`:''}<button class="sm" data-gent="${e.id}">Editar</button></td></tr>`}).join('')}</tbody></table></div>`:'<p class="sub">Nenhum lançamento aqui.</p>'}
+  <p class="sub">Os comprovantes de aluguel que você aprova no app entram aqui sozinhos.</p></section>`},
+ async v_mul(){const F=this.fns;$('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Multas (${F.length})</h2><button class="pri" data-gfine>+ Multa</button></div>
+  ${F.length?`<ul class="list">${F.map(f=>{const c=this.car(f.car_id),p=this.cl(f.client_id),fim=f.status==='Paga'||f.status==='Cobrada do cliente';return`<li><div style="flex:1;min-width:220px"><b>${esc(c?c.placa:'—')}</b> · ${esc(f.descricao||'Multa')} <span class="tag ${fim?'t-ok':f.status==='Pendente'?'t-amb':'t-blue'}">${esc(f.status)}</span><div class="sub">Infração ${fd(f.data_infr)} · ${esc(p?p.nome:'condutor não definido')}${f.pontos?' · '+f.pontos+' pts':''}</div><div class="row" style="margin-top:4px">${f.status==='Pendente'&&f.prazo_indic?'Indicar até '+fd(f.prazo_indic)+' '+G.dTag(dd(f.prazo_indic)):''} ${!fim&&f.venc?'Boleto '+fd(f.venc)+' '+G.dTag(dd(f.venc)):''}</div></div>
+   <div class="row"><b>${brl(f.valor)}</b>${f.arquivo?`<button class="sm" data-open="${esc(f.arquivo)}">Ver</button>`:''}${fim?'':`<button class="sm" data-gfcob="${f.id}">Cobrar do cliente</button><button class="sm" data-gfpag="${f.id}">Paguei</button>`}<button class="sm" data-gfine="${f.id}">Editar</button></div></li>`}).join('')}</ul>`:'<p class="sub">Nenhuma multa cadastrada.</p>'}
+  <p class="sub">“Cobrar do cliente” lança a cobrança no financeiro. “Paguei” lança a despesa. O app avisa 10 dias antes do prazo de indicar o condutor e 15 dias antes do boleto.</p></section>`},
+ async v_don(){const T=this.cars.filter(isThird),by={};for(const c of T)(by[ownerName(c)]=by[ownerName(c)]||[]).push(c);
+  $('#pane').innerHTML=Object.keys(by).length?Object.entries(by).map(([n,C])=>{const o=C[0];return`<section class="card"><h2>${esc(n)}</h2><p class="sub">${esc([o.dono_doc&&'CPF '+o.dono_doc,o.dono_tel,o.dono_pix&&'Pix '+o.dono_pix].filter(Boolean).join(' · '))}</p>${o.dono_tel?`<a class="btn sm" href="${waLink(o.dono_tel)}" target="_blank" rel="noopener">WhatsApp</a>`:''}
+   ${C.map(c=>{if(donoPaga(c)){const P=G.comPendentes(c),hist=this.ens.filter(e=>e.car_id===c.id&&e.categoria==='Comissão'&&e.pago).sort((a,b)=>(b.ref||'').localeCompare(a.ref||'')).slice(0,6);
+     return`<h3>${esc(c.placa)} · ${esc(carNome(c))} <span class="sub">— ${esc(c.comissao_tipo||'')} ${c.comissao_tipo&&c.comissao_tipo.startsWith('%')?(+c.comissao_valor||0)+'%':brl(c.comissao_valor)} · paga dia ${c.dia_pagamento_dono||26}</span></h3>
+     ${P.length?`<ul class="list">${P.map(x=>`<li><div><b>Comissão de ${mLabel(x.m)}</b><div class="sub">${brl(x.falta)} · vence ${fd(x.due)}</div></div><div class="row">${G.dTag(dd(x.due))}<button class="sm ok" data-grecom="${c.id}|${x.m}">Recebi</button></div></li>`).join('')}</ul>`:'<p class="sub">Comissões em dia.</p>'}
+     ${hist.length?`<p class="sub">Recebidas: ${hist.map(e=>`${mLabel(e.ref||emOf(e))} ${brl(e.valor)}`).join(' · ')}</p>`:''}`}
+    const ms=[...new Set(this.ens.filter(e=>e.car_id===c.id).map(e=>e.categoria===REP?(e.ref||emOf(e)):emOf(e)).filter(Boolean))].sort().reverse().slice(0,6);
+    return`<h3>${esc(c.placa)} · ${esc(carNome(c))} <span class="sub">— eu recebo o aluguel e repasso</span></h3><div class="scroll"><table><thead><tr><th>Mês</th><th>Aluguel</th><th>Comissão</th><th>Despesas</th><th>Repassado</th><th>Falta repassar</th><th></th></tr></thead><tbody>${ms.map(mm=>{const x=G.carMonth(c,mm);return`<tr><td>${mLabel(mm)}</td><td>${brl(x.alug)}</td><td>${brl(x.com)}</td><td>${brl(x.desp)}</td><td>${brl(x.rep)}</td><td><b>${brl(x.saldo)}</b></td><td>${x.saldo>0.009?`<button class="sm ok" data-grep="${c.id}|${mm}">Repassei</button>`:''}</td></tr>`}).join('')||'<tr><td colspan="7" class="sub">Sem movimento ainda.</td></tr>'}</tbody></table></div>`}).join('')}</section>`}).join(''):'<section class="card"><h2>Proprietários</h2><p class="sub">Nenhum carro de terceiro. Em Carros → Editar, marque “Não, é de terceiro”.</p></section>'},
+ async v_emp(){const d=this.emp||{};$('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Empresa</h2><button class="pri" data-gemp>Editar</button></div>
+  <p><b>${esc(d.nome||'—')}</b><br>${esc([d.doc,d.tel,d.email].filter(Boolean).join(' · '))}<br>${esc([d.endereco,d.cidade].filter(Boolean).join(' · '))}<br>Pix: ${esc(d.pix||'—')}</p>
+  <p class="sub">Limite de ${(+d.limiteKmMes||10000).toLocaleString('pt-BR')} km por mês · ${brl(d.kmExcedente??0.5)} por km excedente · multa por atraso ${d.multaAtraso??10}%.</p></section>
+  <section class="card"><h2>Usar no computador</h2><p>Abra <b>https://lucassvuca-stack.github.io/uka-app/</b> no navegador do PC e entre com o mesmo e-mail. É o mesmo sistema e os mesmos dados do celular.</p><p class="sub">No Chrome do PC dá para instalar como programa: menu ⋮ → “Instalar UKA RENTALS”.</p></section>`},
+ async v_car(){const f=this.cfil,C=this.cars.filter(c=>f==='todos'||(f==='meus'?!isThird(c):isThird(c)));
+  $('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Carros (${this.cars.length})</h2><button class="pri" data-newcar>+ Carro</button></div>
+  <div class="row" style="margin:6px 0 4px">${[['todos','Todos'],['meus','Meus carros'],['terc','De terceiros']].map(([k,l])=>`<button class="sm ${f===k?'pri':''}" data-gcfil="${k}">${l}</button>`).join('')}</div>
+  <div class="cars">${C.map(c=>{const k=this.ks.find(x=>x.car_id===c.id&&x.status==='Ativo'),p=k&&this.cl(k.client_id),ip=G.nextIpva(c);
+   const venc=[['IPVA',ip.venc],['Licenc.',c.lic_venc],['Seguro',c.seguro_venc]].filter(x=>x[1]).map(([l,v])=>{const d=dd(v);return`<span class="tag ${d<0?'t-red':d<=30?'t-amb':'t-mut'}">${l} ${fd(v)}</span>`}).join(' ');
+   return`<div class="carc"><div class="row" style="justify-content:space-between;align-items:flex-start">${plate(c.placa)}<span class="tag ${p?'t-blue':c.status==='Disponível'?'t-ok':'t-amb'}">${p?'Alugado':esc(c.status||'Disponível')}</span></div>
+   <b>${esc(carNome(c))} ${esc(c.ano||'')}</b> <span class="sub">${esc(c.cor||'')}</span>
+   <div class="sub">${p?'Com '+esc(p.nome)+' · '+brl(k.valor)+'/'+({Semanal:'semana',Mensal:'mês',Quinzenal:'quinzena','Diária':'dia'}[k.periodo]||'semana'):'Aluguel '+brl(c.valor_semanal)+'/semana'} · ${kmf(c.km)}</div>
+   ${+c.valor_fipe?`<div class="sub">FIPE ${brl(c.valor_fipe)} ${esc(c.fipe_ref?'('+c.fipe_ref+')':'')}</div>`:''}
+   ${isThird(c)?`<div class="sub">De ${esc(ownerName(c))} · comissão ${c.comissao_tipo&&c.comissao_tipo.startsWith('%')?(+c.comissao_valor||0)+'%':brl(c.comissao_valor)}</div>`:''}
+   ${venc?`<div class="row" style="gap:4px;margin-top:4px">${venc}</div>`:''}
+   <div class="row" style="margin-top:8px"><button class="sm" data-gkm="${c.id}">Km</button><button class="sm" data-ggas="${c.id}">Gastos</button><button class="sm" data-gdoc="${c.id}">Documentos</button><button class="sm pri" data-editcar="${c.id}">Editar</button></div></div>`}).join('')}</div></section>`}
+});
+
+/* liga as telas novas: abas, carregamento e cliques */
+{const load0=Admin.load.bind(Admin);Admin.load=async function(){await Promise.all([load0(),this.loadG()])};
+ const start0=Admin.start.bind(Admin);Admin.start=async function(){document.body.classList.add('adm');if(!this.on)this.tab='painel';return start0()};
+ Admin.editCar=c=>G.editCar(c&&c.id?c:undefined);
+ Admin.render=async function(){const P=this.ups.filter(u=>u.status==='Pendente'),A=G.alertas().filter(a=>a.d<=7).length;
+  const T=[['painel','📊 Painel'],['pend',`${this.ready().length||this.cardsDocs()||this.kmAlerts()?'🔔 ':''}Para conferir (${P.length})`],['cli','Clientes'],['ctr','Contratos'],['car','Carros'],['fin','Financeiro'],['mul','Multas'],['don','Proprietária'],['emp','Empresa']];
+  if(!T.some(t=>t[0]===this.tab))this.tab='painel';
+  $('#app').innerHTML=`${notifBanner('Receba aviso no celular, mesmo com o app fechado, quando um cliente enviar documento, foto ou pagamento.')}<div class="tabs" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" class="${this.tab===k?'on':''}">${l}${k==='painel'&&A?` <span class="tag t-red">${A}</span>`:''}</button>`).join('')}</div><div id="pane"></div>`;
+  await this['v_'+this.tab]()};
+ document.addEventListener('click',e=>{if(!Admin.on)return;const b=e.target.closest('[data-gnew],[data-gent],[data-gpay],[data-gfine],[data-gfcob],[data-gfpag],[data-ggas],[data-gdoc],[data-gdocdel],[data-gkm],[data-gkmexc],[data-grecom],[data-grep],[data-gemp],[data-gffil],[data-gcfil]');if(!b)return;const d=b.dataset;
+  if(d.gnew)G.editEntry({tipo:d.gnew,categoria:d.gnew==='Receita'?'Aluguel':'Manutenção',venc:TODAY,pago:d.gnew==='Despesa',car_id:d.gcar||null});
+  if(d.gent){const x=Admin.ens.find(y=>y.id===d.gent);if(x)G.editEntry(x)}
+  if(d.gpay)G.pagar(d.gpay);
+  if(d.gfine!==undefined){const x=d.gfine&&Admin.fns.find(y=>y.id===d.gfine);G.editFine(x||undefined)}
+  if(d.gfcob)G.cobrarMulta(d.gfcob);if(d.gfpag)G.pagarMulta(d.gfpag);
+  if(d.ggas)G.gastos(d.ggas);if(d.gdoc)G.docsCar(d.gdoc);if(d.gdocdel){const[i,n]=d.gdocdel.split('|');G.docDel(i,+n)}
+  if(d.gkm)G.kmCar(d.gkm);if(d.gkmexc)G.kmExc(d.gkmexc);
+  if(d.grecom){const[i,m]=d.grecom.split('|');G.recebiCom(i,m)}if(d.grep){const[i,m]=d.grep.split('|');G.repassei(i,m)}
+  if(d.gemp!==undefined)G.editEmp();if(d.gffil){Admin.ffil=d.gffil;Admin.render()}if(d.gcfil){Admin.cfil=d.gcfil;Admin.render()}});
+ document.addEventListener('change',e=>{const t=e.target;if(!Admin.on||!t.dataset)return;
+  if(t.dataset.gmes!==undefined&&t.value){Admin.mes=t.value;Admin.render()}
+  if(t.dataset.gfmes!==undefined&&t.value){Admin.fmes=t.value;Admin.render()}
+  if(t.dataset.gdocup&&t.files&&t.files[0]){const f=t.files[0];t.value='';G.docUp(t.dataset.gdocup,f)}});
+}
+
 document.addEventListener('click',e=>{if(!Admin.on)return;const b=e.target.closest('[data-tab],[data-ok],[data-no],[data-ficha],[data-newcli],[data-editcli],[data-newcar],[data-editcar],[data-newctr],[data-editctr],[data-okall],[data-okdocs],[data-prep],[data-adpdf],[data-adblank],[data-notif]');if(!b)return;const d=b.dataset;
   if(d.tab){Admin.tab=d.tab;Admin.render()}if(d.ok)Admin.decide(d.ok,true);if(d.no)Admin.decide(d.no,false);if(d.ficha)Admin.ficha(d.ficha);
   if(d.newcli!==undefined)Admin.editCli();if(d.editcli)Admin.editCli(Admin.cl(d.editcli));if(d.newcar!==undefined)Admin.editCar();if(d.editcar)Admin.editCar(Admin.car(d.editcar));
