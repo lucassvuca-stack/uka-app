@@ -195,6 +195,13 @@ function notifBanner(txt){if(pushOn)return'';
   if(!pushOk())return'';
   if(Notification.permission==='denied')return`<div class="note">🔕 Os avisos estão bloqueados. Libere nas configurações do celular para receber lembretes.</div>`;
   return`<div class="note n-blue" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🔔 ${txt}</span><button class="sm pri" data-push>Ativar avisos</button></div>`}
+function askPushCliente(){let n=0;const key='uka-pushask-'+TODAY;
+ const t=setInterval(()=>{n++;if(n>40){clearInterval(t);return}
+  if(pushOn||!pushOk()||(isIOS&&!standalone())||Notification.permission!=='default'){clearInterval(t);return}
+  try{if(localStorage.getItem(key))return clearInterval(t)}catch(e){}
+  if($('#ov').classList.contains('on'))return;clearInterval(t);try{localStorage.setItem(key,'1')}catch(e){}
+  modal(`<h2>🔔 Ative os avisos da UKA</h2><p>Assim o seu celular avisa, mesmo com o app fechado:</p><ul style="margin:0 0 10px;padding-left:20px;line-height:1.6"><li>no <b>dia de pagar o aluguel</b> (e na véspera)</li><li>quando faltar a <b>foto do odômetro</b> da semana</li><li>quando a UKA <b>aprovar ou pedir para reenviar</b> algo</li></ul><p class="sub">Toque em “Ativar avisos” e depois em <b>Permitir</b>.</p><div class="row" style="justify-content:flex-end;margin-top:10px"><button data-close>Agora não</button><button class="pri" id="pushNow">Ativar avisos</button></div>`);
+  $('#pushNow').onclick=async()=>{closeModal();await pushSetup(true);if(Client.me)Client.render()}},1500)}
 document.addEventListener('click',async e=>{const b=e.target.closest('[data-push]');if(!b)return;b.disabled=true;await pushSetup(true);b.disabled=false;
   if(Admin.on)Admin.render();else if(Client.me)Client.render()});
 
@@ -335,7 +342,7 @@ const revAng=m=>`Revisão ${m.toLocaleString('pt-BR')} km`;
 
 /* =============================== CLIENTE =============================== */
 const Client={me:null,ks:[],ups:[],
- async start(me){this.me=me;await this.load();this.sig=this.assin();this.render();
+ async start(me){this.me=me;await this.load();this.sig=this.assin();this.render();askPushCliente();
   if(!this.timer){this.timer=setInterval(()=>this.poll(),60000);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')this.poll()})}},
  assin(){return JSON.stringify([this.ks.map(k=>[k.id,k.etapa,k.status,k.valor]),this.ups.map(u=>[u.id,u.status])])},
  async poll(){if(!this.me||Admin.on||this.polling)return;this.polling=true;try{const antes=this.ups;await this.load();const s=this.assin();if(s!==this.sig){
