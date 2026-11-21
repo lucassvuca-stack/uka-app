@@ -167,8 +167,32 @@ $('#out').onclick=async()=>{await sb.auth.signOut();mode='login';loginView()};
 const busy=()=>$('#ov').classList.contains('on')||(document.activeElement&&/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName));
 function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)(),o=a.createOscillator(),g=a.createGain();o.connect(g);g.connect(a.destination);o.frequency.value=880;g.gain.value=.08;o.start();setTimeout(()=>{o.frequency.value=1175},140);setTimeout(()=>{o.stop();a.close()},320)}catch(e){}}
 async function avisar(titulo,corpo){toast(titulo+(corpo?' — '+corpo:''));beep();
-  try{if('Notification' in window&&Notification.permission==='granted'&&document.visibilityState!=='visible'){const r=await navigator.serviceWorker.ready;r.showNotification(titulo,{body:corpo||'',icon:'icon-192.png',badge:'icon-192.png',tag:'uka-'+Date.now()})}}catch(e){}}
+  try{if(!pushOn&&'Notification' in window&&Notification.permission==='granted'&&document.visibilityState!=='visible'){const r=await navigator.serviceWorker.ready;r.showNotification(titulo,{body:corpo||'',icon:'icon-192.png',badge:'icon-192.png',tag:'uka-'+Date.now()})}}catch(e){}}
 const podeAvisar=()=>'Notification' in window&&'serviceWorker' in navigator&&Notification.permission==='default';
+/* ---------- notificações push (chegam mesmo com o app fechado) ---------- */
+const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const standalone=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const pushOk=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window;
+let pushOn=false;
+const u8=b=>{const s=atob((b+'='.repeat((4-b.length%4)%4)).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(s,c=>c.charCodeAt(0))};
+async function pushSetup(ask){try{
+  if(!pushOk())return false;
+  if(ask&&Notification.permission!=='granted'){const r=await Notification.requestPermission();if(r!=='granted'){toast('Avisos não autorizados. Libere nas configurações do celular.');return false}}
+  if(Notification.permission!=='granted')return false;
+  const reg=await navigator.serviceWorker.ready;let sub=await reg.pushManager.getSubscription();
+  if(!sub){const r=await fetch(C.SUPABASE_URL+'/functions/v1/notify',{headers:{Authorization:'Bearer '+C.SUPABASE_ANON_KEY,apikey:C.SUPABASE_ANON_KEY}});const{publicKey}=await r.json();
+    sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:u8(publicKey)})}
+  const j=sub.toJSON(),{data:{session}}=await sb.auth.getSession();if(!session)return false;
+  const{error}=await sb.from('push_subscriptions').upsert({user_id:session.user.id,endpoint:j.endpoint,p256dh:j.keys.p256dh,auth:j.keys.auth},{onConflict:'endpoint'});
+  if(error)throw error;pushOn=true;if(ask)toast('🔔 Avisos ativados neste celular!');return true
+}catch(e){if(ask)toast('Não foi possível ativar: '+(e.message||e));return false}}
+function notifBanner(txt){if(pushOn)return'';
+  if(isIOS&&!standalone())return`<div class="note n-blue">🔔 Para receber avisos no iPhone, abra o app pelo ícone <b>UKA RENTALS</b> na tela de início (Compartilhar → Adicionar à Tela de Início).</div>`;
+  if(!pushOk())return'';
+  if(Notification.permission==='denied')return`<div class="note">🔕 Os avisos estão bloqueados. Libere nas configurações do celular para receber lembretes.</div>`;
+  return`<div class="note n-blue" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🔔 ${txt}</span><button class="sm pri" data-push>Ativar avisos</button></div>`}
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-push]');if(!b)return;b.disabled=true;await pushSetup(true);b.disabled=false;
+  if(Admin.on)Admin.render();else if(Client.me)Client.render()});
 
 /* ---------- cadastro feito pelo próprio cliente ---------- */
 const mCpf=v=>{const d=String(v).replace(/\D/g,'').slice(0,11);return d.replace(/^(\d{3})(\d{0,3})(\d{0,3})(\d{0,2}).*/,(m,a,b,c,e)=>a+(b?'.'+b:'')+(c?'.'+c:'')+(e?'-'+e:''))};
@@ -191,6 +215,7 @@ let booting=false;
 async function boot(){if(booting)return;booting=true;try{
   const{data:{session}}=await sb.auth.getSession();if(!session){loginView();return}
   const uid=session.user.id;$('#out').hidden=false;
+  pushSetup(false).then(ok=>{if(ok&&document.querySelector('[data-push]')){if(Admin.on)Admin.render();else if(Client.me)Client.render()}});
   const{data:adm}=await sb.from('admins').select('user_id').eq('user_id',uid).maybeSingle();
   if(adm){$('#who').textContent='Administrador';return Admin.start()}
   const{data:me}=await sb.from('clients').select('*').eq('user_id',uid).maybeSingle();
@@ -380,7 +405,7 @@ const Client={me:null,ks:[],ups:[],
      <div class="row">${C.WHATSAPP?`<a class="btn" href="https://wa.me/${esc(C.WHATSAPP)}?text=${encodeURIComponent(`Olá! Sou ${me.nome}. O carro ${car&&car.placa?car.placa+' ':''}chegou na revisão dos ${KI.marco.toLocaleString('pt-BR')} km. Em qual oficina e quando posso levar?`)}" target="_blank" rel="noopener">Combinar a oficina</a>`:''}<label class="btn ok" style="position:relative">Já levei: enviar foto da nota<input type="file" accept="image/*,application/pdf" data-up="outro" data-ang="${esc(rAng)}" style="position:absolute;opacity:0;width:1px;height:1px"></label></div>`}</section>`}
    kmCard+='';KI.pct=pct}
   try{if(navigator.setAppBadge){badge?navigator.setAppBadge(1):navigator.clearAppBadge()}}catch(e){}
-  $('#app').innerHTML=`<h1>Olá, ${esc(me.nome.split(' ')[0])}!</h1>
+  $('#app').innerHTML=`<h1>Olá, ${esc(me.nome.split(' ')[0])}!</h1>${notifBanner('Ative os avisos para lembrar do dia do pagamento, do odômetro e saber quando a UKA aprovar seus envios.')}
   ${payCard}
   ${kmCard}
   ${revCard}
@@ -507,7 +532,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   await this.load();this.render();const tel=String(c.tel||'').replace(/\D/g,'').replace(/^(?!55)/,'55');
   modal(`<h2>✅ Cadastro de ${esc(c.nome.split(' ')[0])} aprovado</h2><p>${P.length} envio(s) aprovado(s).</p>${c.tel?`<a class="btn ok" style="width:100%" href="https://wa.me/${tel}?text=${encodeURIComponent(`Olá, ${c.nome.split(' ')[0]}! Conferimos seus documentos e as fotos do carro: está tudo certo, cadastro aprovado. ✅ UKA RENTALS`)}" target="_blank" rel="noopener">Avisar o cliente no WhatsApp</a>`:''}<button style="width:100%;margin-top:8px" data-close>Fechar</button>`)},
  async v_pend(){const P=this.ups.filter(u=>u.status==='Pendente');const sig=await signed(P.filter(u=>isImg(u.caminho)).map(u=>u.caminho));const RD=this.ready();
-  $('#pane').innerHTML=`${podeAvisar()?'<div class="note n-blue" style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap"><span>🔔 Quer receber aviso no celular quando um cliente enviar algo?</span><button class="sm pri" data-notif>Ativar avisos</button></div>':''}<p class="sub" style="margin:0 0 8px">Atualiza sozinho a cada 30 segundos.</p>${this.cardsDocs()}${this.kmAlerts()}${RD.map(r=>`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Cadastro completo para conferir</h2><p><b>${esc(r.c.nome)}</b>${r.car?' · '+esc(r.car.placa):''} enviou os documentos e as 10 fotos da vistoria. <b>${r.pend}</b> item(ns) esperando você.</p><div class="row"><button class="pri" data-ficha="${r.c.id}">Conferir fotos e documentos</button><button class="ok" data-okall="${r.c.id}">Aprovar cadastro</button></div></section>`).join('')}<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
+  $('#pane').innerHTML=`${notifBanner('Receba aviso no celular, mesmo com o app fechado, quando um cliente enviar documento, foto ou pagamento.')}<p class="sub" style="margin:0 0 8px">Atualiza sozinho a cada 30 segundos.</p>${this.cardsDocs()}${this.kmAlerts()}${RD.map(r=>`<section class="card" style="border:2px solid var(--blue);background:var(--blue2)"><h2>🔔 Cadastro completo para conferir</h2><p><b>${esc(r.c.nome)}</b>${r.car?' · '+esc(r.car.placa):''} enviou os documentos e as 10 fotos da vistoria. <b>${r.pend}</b> item(ns) esperando você.</p><div class="row"><button class="pri" data-ficha="${r.c.id}">Conferir fotos e documentos</button><button class="ok" data-okall="${r.c.id}">Aprovar cadastro</button></div></section>`).join('')}<section class="card"><h2>Envios para conferir</h2><p class="sub">Ao aprovar um odômetro, o km do carro é atualizado. Pagamentos aprovados aparecem na ficha do cliente.</p>${P.length?`<ul class="list">${P.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada pendente. Tudo conferido!</p>'}</section>`},
  async v_cli(){$('#pane').innerHTML=`<section class="card"><div class="row" style="justify-content:space-between"><h2>Clientes (${this.cls.length})</h2><button class="pri" data-newcli>+ Cliente</button></div>
   <div class="scroll"><table><thead><tr><th>Nome</th><th>E-mail de acesso</th><th>Telefone</th><th>Acesso</th><th></th></tr></thead><tbody>${this.cls.map(c=>`<tr><td><b>${esc(c.nome)}</b><div class="sub">${esc(c.cpf||'')}</div></td><td>${esc(c.email)}</td><td>${esc(c.tel||'')}</td><td>${c.user_id?'<span class="tag t-ok">Ativo</span>':'<span class="tag t-amb">Aguardando 1º acesso</span>'}</td><td class="row"><button class="sm pri" data-ficha="${c.id}">Ficha</button><button class="sm" data-editcli="${c.id}">Editar</button></td></tr>`).join('')}</tbody></table></div>
   <p class="sub">Para o cliente entrar: cadastre o e-mail dele aqui, mande o link do app e peça para tocar em “Primeiro acesso” e criar a senha.</p></section>`},
@@ -570,7 +595,6 @@ document.addEventListener('click',e=>{if(!Admin.on)return;const b=e.target.close
   if(d.tab){Admin.tab=d.tab;Admin.render()}if(d.ok)Admin.decide(d.ok,true);if(d.no)Admin.decide(d.no,false);if(d.ficha)Admin.ficha(d.ficha);
   if(d.newcli!==undefined)Admin.editCli();if(d.editcli)Admin.editCli(Admin.cl(d.editcli));if(d.newcar!==undefined)Admin.editCar();if(d.editcar)Admin.editCar(Admin.car(d.editcar));
   if(d.okall)Admin.okAll(d.okall);if(d.okdocs)Admin.okDocs(d.okdocs);if(d.prep)Admin.prep(d.prep);
-  if(d.notif!==undefined){Notification.requestPermission().then(r=>{toast(r==='granted'?'Avisos ativados neste celular.':'Avisos não autorizados.');Admin.render()})}
   if(d.adblank!==undefined)gerarPDF(ctrDados({},{},{}),'contrato-uka-em-branco.pdf').catch(x=>toast(x.message));
   if(d.adpdf){const k=Admin.ks.find(x=>x.id===d.adpdf);if(k)gerarPDF(ctrDados(Admin.cl(k.client_id),k,Admin.car(k.car_id)),'contrato.pdf').catch(x=>toast(x.message))}
   if(d.newctr!==undefined)Admin.editCtr();if(d.editctr)Admin.editCtr(Admin.ks.find(k=>k.id===d.editctr))});
