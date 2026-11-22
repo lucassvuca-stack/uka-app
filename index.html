@@ -64,6 +64,14 @@ table{width:100%;border-collapse:collapse;font-size:15px}th{text-align:left;font
 .cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px;margin-top:8px}.carc{border:1px solid var(--line);border-radius:14px;padding:12px;display:grid;gap:3px;align-content:start}
 body.adm main{max-width:1240px}
 @media(max-width:560px){.grid{grid-template-columns:minmax(0,1fr)}h1{font-size:23px}}
+
+/* tabelas do dono viram cartões no celular */
+@media(max-width:720px){body.adm #pane table,body.adm #pane tbody,body.adm #pane tr,body.adm #pane td{display:block;width:100%}body.adm #pane thead{display:none}
+ body.adm #pane tr{border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:0 0 10px;background:var(--card,#fff)}
+ body.adm #pane td{border:0;padding:4px 0;display:flex;gap:12px;justify-content:space-between;align-items:center;text-align:right;white-space:normal}
+ body.adm #pane td::before{content:attr(data-l);color:var(--mut);font-size:13px;text-align:left;flex:none;max-width:45%}
+ body.adm #pane td[data-l=""]::before{display:none}body.adm #pane td.row,body.adm #pane td:last-child{justify-content:flex-end;flex-wrap:wrap}
+ body.adm #pane .scroll{overflow:visible}}
 </style>
 </head>
 <body>
@@ -126,9 +134,10 @@ async function signed(paths){const need=[...new Set(paths.filter(p=>p&&!(urlCach
   if(need.length){const{data}=await sb.storage.from('arquivos').createSignedUrls(need,3600);(data||[]).forEach(x=>{if(x.signedUrl)urlCache[x.path]={u:x.signedUrl,t:Date.now()+50*60e3}})}
   return p=>urlCache[p]?urlCache[p].u:''}
 const isImg=p=>/\.(jpe?g|png|webp|gif|heic)$/i.test(p||'');
-async function openFile(path){const u=(await signed([path]))(path);if(!u)return toast('Não consegui abrir o arquivo.');
+async function openFile(path){const c0=urlCache[path];if(c0&&c0.t>Date.now()&&!isImg(path)){const w=window.open(c0.u,'_blank','noopener');if(w)return}
+  const u=(await signed([path]))(path);if(!u)return toast('Não consegui abrir o arquivo.');
   if(isImg(path))modal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>Foto</b><span class="row"><a class="btn sm" href="${esc(u)}" target="_blank" rel="noopener">Abrir em tela cheia</a><button class="sm" data-close>Fechar</button></span></div><img class="big" src="${esc(u)}" alt="">`);
-  else window.open(u,'_blank','noopener')}
+  else modal(`<div class="row" style="justify-content:space-between;margin-bottom:8px"><b>Documento (PDF)</b><button class="sm" data-close>Fechar</button></div><p class="sub">Toque no botão para abrir o arquivo.</p><a class="btn pri" style="display:inline-flex;text-decoration:none" href="${esc(u)}" target="_blank" rel="noopener">Abrir documento</a>`)}
 document.addEventListener('click',async e=>{if(!Client.me||Admin.on)return;const me=Client.me,k=Client.k;
   if(e.target.closest('[data-perfil]')){modal(`<form id="pf"><h2>Seus dados para o contrato</h2><div class="grid">
     <label>Nacionalidade<input name="nacionalidade" value="${esc(me.nacionalidade||'Brasileira')}" lang="pt-BR" autocapitalize="words" required></label>
@@ -579,7 +588,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   async(o,f)=>{const file=f.elements.pdf.files[0];if(file){const up=await putFile(o.client_id,'contratos',file);o.pdf_original=up.path}
    const q=k.id?sb.from('contracts').update(o).eq('id',k.id):sb.from('contracts').insert(o);const{error}=await q;if(error)throw error})},
  async ficha(id){const c=this.cl(id);if(!c)return;const ks=this.ks.filter(k=>k.client_id===id),U=this.ups.filter(u=>u.client_id===id),ka=ks.find(k=>k.status==='Ativo'),car=ka&&this.car(ka.car_id);
-  const sig=await signed(U.filter(u=>isImg(u.caminho)).map(u=>u.caminho));const lastBy=a=>U.find(u=>u.tipo==='vistoria'&&u.angulo===a&&u.status!=='Recusado');
+  const sig=await signed(U.map(u=>u.caminho));const lastBy=a=>U.find(u=>u.tipo==='vistoria'&&u.angulo===a&&u.status!=='Recusado');
   const pagos=U.filter(u=>u.tipo==='pagamento'&&u.status==='Aprovado').reduce((s,u)=>s+(+u.valor||0),0);
   modal(`<div class="row" style="justify-content:space-between"><h2>${esc(c.nome)}</h2><button class="sm" data-close>Fechar</button></div>
   <p class="sub">${esc([c.email,c.tel,c.cpf&&'CPF '+c.cpf].filter(Boolean).join(' · '))}</p>
@@ -589,7 +598,7 @@ const Admin={on:false,tab:'pend',cars:[],cls:[],ks:[],ups:[],
   <h3>Contrato</h3>${(()=>{const kk=this.ks.find(k=>k.client_id===c.id&&k.status==='Ativo');const sa=U.find(u=>u.tipo==='contrato_assinado'&&u.status!=='Recusado');
    const et=!kk?'<span class="tag t-mut">ainda não preparado</span>':kk.etapa==='enviado'?'<span class="tag t-amb">enviado — cliente conferindo</span>':kk.etapa==='confirmado'?(sa?`<span class="tag ${sa.status==='Aprovado'?'t-ok':'t-amb'}">assinado ${sa.status==='Aprovado'?'e aprovado':'— conferir'}</span>`:'<span class="tag t-amb">cliente confirmou os dados — falta assinar</span>'):'<span class="tag t-blue">contrato antigo</span>';
    return`<div class="row" style="margin-bottom:6px">${et}<button class="sm ${kk?'':'pri'}" data-prep="${c.id}">${kk?'Editar e reenviar contrato':'Escolher o carro e enviar contrato'}</button>${kk&&kk.etapa?`<button class="sm" data-adpdf="${kk.id}">Ver contrato (PDF)</button>`:''}${sa?`<button class="sm" data-open="${esc(sa.caminho)}">Ver assinado</button>`:''}</div>`})()}
-  <h3>Documentos</h3><div class="row">${DOCS.map(x=>{const u=U.find(v=>v.tipo==='outro'&&v.angulo===x.t&&v.status!=='Recusado');return`<span class="tag ${u?(u.status==='Aprovado'?'t-ok':'t-amb'):(x.req?'t-red':'t-mut')}">${u?(u.status==='Aprovado'?'✓ ':'⏳ '):(x.req?'Falta: ':'')}${esc(x.t)}</span>`}).join('')}</div>
+  <h3>Documentos</h3><p class="sub">Toque num documento enviado para abrir.</p><div class="row">${DOCS.map(x=>{const u=U.find(v=>v.tipo==='outro'&&v.angulo===x.t&&v.status!=='Recusado');return u?`<button class="sm ${u.status==='Aprovado'?'ok':''}" data-open="${esc(u.caminho)}">${u.status==='Aprovado'?'✓':'⏳'} ${esc(x.t)} · abrir</button>`:`<span class="tag ${x.req?'t-red':'t-mut'}">${x.req?'Falta: ':''}${esc(x.t)}</span>`}).join('')}${U.filter(v=>v.tipo==='outro'&&v.status!=='Recusado'&&!DOCS.some(x=>x.t===v.angulo)).map(v=>`<button class="sm" data-open="${esc(v.caminho)}">${esc(v.angulo||'Documento')} · abrir</button>`).join('')}</div>
   <h3>Vistoria (fotos do carro)</h3><p class="sub">Você também pode tirar as fotos e enviar por aqui.</p>
   <div class="shots">${ANGULOS.map(a=>{const u=lastBy(a);return`<label class="shot ${u?'has':''}">${u&&sig(u.caminho)?`<img src="${esc(sig(u.caminho))}" alt="">`:''}<span>${esc(a)}</span>${u?stTag(u.status):''}<input type="file" accept="image/*" capture="environment" data-aup="${esc(a)}" data-cli="${c.id}"></label>`}).join('')}</div>
   <h3>Todos os envios</h3>${U.length?`<ul class="list">${U.map(u=>this.upRow(u,sig)).join('')}</ul>`:'<p class="sub">Nada enviado ainda.</p>'}`)},
@@ -842,10 +851,11 @@ Object.assign(Admin,{ens:[],fns:[],emp:{},mes:TODAY.slice(0,7),fmes:TODAY.slice(
 {const load0=Admin.load.bind(Admin);Admin.load=async function(){await Promise.all([load0(),this.loadG()])};
  const start0=Admin.start.bind(Admin);Admin.start=async function(){document.body.classList.add('adm');if(!this.on)this.tab='painel';const r=await start0();try{if(/[?&]lembretes=1/.test(location.search)){history.replaceState(null,'',location.pathname);G.lembretes()}}catch(e){}return r};
  Admin.editCar=c=>G.editCar(c&&c.id?c:undefined);
- Admin.render=async function(){const P=this.ups.filter(u=>u.status==='Pendente'),A=G.alertas().filter(a=>a.d<=7).length;
+ Admin.render=async function(){const P=this.ups.filter(u=>u.status==='Pendente'),A=G.alertas().filter(a=>a.d<=7).length;const tb0=document.querySelector('#app .tabs'),sl0=tb0?tb0.scrollLeft:0;
   const T=[['painel','📊 Painel'],['pend',`${this.ready().length||this.cardsDocs()||this.kmAlerts()?'🔔 ':''}Para conferir (${P.length})`],['cli','Clientes'],['ctr','Contratos'],['car','Carros'],['fin','Financeiro'],['mul','Multas'],['don','Proprietária'],['emp','Empresa']];
   if(!T.some(t=>t[0]===this.tab))this.tab='painel';
   $('#app').innerHTML=`${notifBanner('Receba aviso no celular, mesmo com o app fechado, quando um cliente enviar documento, foto ou pagamento.')}<div class="tabs" role="tablist">${T.map(([k,l])=>`<button data-tab="${k}" class="${this.tab===k?'on':''}">${l}${k==='painel'&&A?` <span class="tag t-red">${A}</span>`:''}</button>`).join('')}</div><div id="pane"></div>`;
+  {const tb=document.querySelector('#app .tabs');if(tb){tb.scrollLeft=sl0;const on=tb.querySelector('.on');if(on){const l=on.offsetLeft-tb.offsetLeft,r=l+on.offsetWidth;if(l<tb.scrollLeft)tb.scrollLeft=l-8;else if(r>tb.scrollLeft+tb.clientWidth)tb.scrollLeft=r-tb.clientWidth+8}}}
   await this['v_'+this.tab]()};
  document.addEventListener('click',e=>{if(!Admin.on)return;const b=e.target.closest('[data-glemb],[data-gnew],[data-gent],[data-gpay],[data-gfine],[data-gfcob],[data-gfpag],[data-ggas],[data-gdoc],[data-gdocdel],[data-gkm],[data-gkmexc],[data-grecom],[data-grep],[data-gemp],[data-gffil],[data-gcfil]');if(!b)return;const d=b.dataset;
   if(d.glemb!==undefined)G.lembretes();if(d.gnew)G.editEntry({tipo:d.gnew,categoria:d.gnew==='Receita'?'Aluguel':'Manutenção',venc:TODAY,pago:d.gnew==='Despesa',car_id:d.gcar||null});
@@ -873,5 +883,6 @@ document.addEventListener('click',e=>{if(!Admin.on)return;const b=e.target.close
 document.addEventListener('change',e=>{const t=e.target;if(Admin.on&&t.dataset&&t.dataset.aup&&t.files&&t.files[0]){const f=t.files[0];t.value='';Admin.adminUpload(f,t.dataset.cli,t.dataset.aup)}});
 }
 </script>
+<script>new MutationObserver(()=>{for(const c of document.querySelectorAll('#pane td:not([data-l])')){const t=c.closest('table');if(!t||!t.tHead){c.dataset.l='';continue}let i=0,p=c;while(p=p.previousElementSibling)i+=p.colSpan||1;const h=t.tHead.rows[0]&&t.tHead.rows[0].cells[i];c.dataset.l=h?h.textContent.trim():''}}).observe(document.documentElement,{childList:true,subtree:true})</script>
 </body>
 </html>
